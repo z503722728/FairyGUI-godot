@@ -168,6 +168,7 @@ namespace FairyGUI
             _scaleY = 1;
             id = "_n" + _gInstanceCounter++;
             CreateDisplayObject();
+            OnDisplayObjectCreated();
             name = id;
             relations = new Relations(this);
             _gears = new GearBase[10];
@@ -1663,6 +1664,14 @@ namespace FairyGUI
         {
 
         }
+        virtual protected void OnDisplayObjectCreated()
+        {
+            if (displayObject != null)
+            {
+                displayObject.node.FocusEntered += () => { DispatchEvent("onFocusIn"); };
+                displayObject.node.FocusExited += () => { DispatchEvent("onFocusOut"); };
+            }
+        }
 
         internal void InternalSetParent(GComponent value)
         {
@@ -1680,7 +1689,7 @@ namespace FairyGUI
                     xv -= _width * _pivotX;
                     yv -= _height * _pivotY;
                 }
-                displayObject.position = new Vector2(xv, yv);
+                displayObject.SetXY(xv, yv);
             }
         }
 
@@ -1734,10 +1743,10 @@ namespace FairyGUI
             parent.Size = displayObject.node.Size;
             parent.Scale = displayObject.node.Scale;
             parent.Rotation = displayObject.node.Rotation;
-            parent.position = displayObject.position;
+            parent.Position = displayObject.node.Position;
             displayObject.node.Scale = Vector2.One;
             displayObject.node.Rotation = 0;
-            displayObject.position = Vector2.Zero;
+            displayObject.SetXY(0, 0);
             if (displayObject.node.GetParent() != null)
                 displayObject.node.AddSibling(parent);
             parent.AddChild(displayObject.node);

@@ -659,7 +659,7 @@ namespace FairyGUI
                     }
                     else
                     {
-                        _content.position = Vector2.Zero;
+                        _content.SetXY(0, 0);
                         _content.Size = new Vector2(contentWidth, contentHeight);
                     }
 
@@ -738,7 +738,7 @@ namespace FairyGUI
             if (_content2 != null)
                 _content2.SetXY(nx, ny);
             else
-                _content.position = new Vector2(nx, ny);
+                _content.SetXY(nx, ny);
 
         }
 

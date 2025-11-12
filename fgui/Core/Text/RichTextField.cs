@@ -1,294 +1,156 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-using Godot;
+﻿using System.Collections.Generic;
 using FairyGUI.Utils;
+using Godot;
 
 namespace FairyGUI
 {
     /// <summary>
     /// 
     /// </summary>
-    public partial class RichTextField : RichTextLabel, IDisplayObject, ITextField
+    public partial class RichTextField : TextField
     {
-        AutoSizeType _autoSize = AutoSizeType.Both;
-        Vector2 _shadowOffset = Vector2.Zero;
-        int _maxWidth;
-        bool _singleLine = false;
+        /// <summary>
+        /// 
+        /// </summary>
+        public IHtmlPageContext htmlPageContext { get; set; }
 
-        public GObject gOwner { get; set; }
-        public IDisplayObject parent { get { return GetParent() as IDisplayObject; } }
-        public Control node { get { return this; } }
-        public bool visible { get { return Visible; } set { Visible = value; } }
-        public float skewX { get; set; }
-        public float skewY { get; set; }
-        public Vector2 position { get { return Position; } set { Position = value; } }
-        public BlendMode blendMode { get; set; }
-        public event System.Action<double> onUpdate;
-        public RichTextField(GObject owner)
+        /// <summary>
+        /// 
+        /// </summary>
+        public HtmlParseOptions htmlParseOptions { get; private set; }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        public Dictionary<uint, Emoji> emojies { get; set; }
+
+        public RichTextField()
         {
-            gOwner = owner;
-            MouseFilter = MouseFilterEnum.Ignore;
-            FitContent = true;
-            ClipContents = false;
-            AutowrapMode = TextServer.AutowrapMode.Off;
-            ScrollActive = false;
-            Resized += OnSizeChanged;
+            Name = "RichTextField";
+
+            htmlPageContext = HtmlPageContext.inst;
+            htmlParseOptions = new HtmlParseOptions();
         }
-        public override void _Process(double delta)
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="name"></param>
+        /// <returns></returns>
+        public HtmlElement GetHtmlElement(string name)
         {
-            if (onUpdate != null)
-                onUpdate(delta);
-        }        
-        public string font
-        {
-            get
+            List<HtmlElement> elements = htmlElements;
+            int count = elements.Count;
+            for (int i = 0; i < count; i++)
             {
-                var f = GetThemeFont("font");
-                if (f != null)
-                    return f.GetFontName();
+                HtmlElement element = elements[i];
+                if (name.Equals(element.name, System.StringComparison.OrdinalIgnoreCase))
+                    return element;
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="index"></param>
+        /// <returns></returns>
+        public HtmlElement GetHtmlElementAt(int index)
+        {
+            return htmlElements[index];
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        public int htmlElementCount
+        {
+            get { return htmlElements.Count; }
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="index"></param>
+        /// <param name="show"></param>
+        public void ShowHtmlObject(int index, bool show)
+        {
+            HtmlElement element = htmlElements[index];
+            if (element.htmlObject != null && element.type != HtmlElementType.Link)
+            {
+                //set hidden flag
+                if (show)
+                    element.status &= 253; //~(1<<1)
                 else
-                    return string.Empty;
-            }
-            set
-            {
-                AddThemeFontOverride("font", FontManager.GetFont(value));
-            }
-        }
-        public int fontSize
-        {
-            get { return GetThemeFontSize("font_size"); }
-            set { AddThemeFontSizeOverride("font_size", value); }
-        }
-        public Color fontColor
-        {
-            get { return GetThemeColor("default_color"); }
-            set { AddThemeColorOverride("default_color", value); }
-        }
-        public float lineSpacing
-        {
-            get { return GetThemeConstant("line_separation"); }
-            set { AddThemeConstantOverride("line_separation", (int)value); }
-        }
+                    element.status |= 2;
 
-        public AlignType align
-        {
-            get
-            {
-                switch (HorizontalAlignment)
+                if ((element.status & 3) == 0) //not (hidden and clipped)
                 {
-                    case HorizontalAlignment.Left:
-                        return AlignType.Left;
-                    case HorizontalAlignment.Center:
-                        return AlignType.Center;
-                    case HorizontalAlignment.Right:
-                        return AlignType.Right;
-                    default:
-                        return AlignType.Center;
-                }
-            }
-            set
-            {
-                switch (value)
-                {
-                    case AlignType.Left:
-                        HorizontalAlignment = HorizontalAlignment.Left;
-                        break;
-                    case AlignType.Center:
-                        HorizontalAlignment = HorizontalAlignment.Center;
-                        break;
-                    case AlignType.Right:
-                        HorizontalAlignment = HorizontalAlignment.Right;
-                        break;
-                    default:
-                        HorizontalAlignment = HorizontalAlignment.Left;
-                        break;
-                }
-            }
-        }
-        public VertAlignType verticalAlign
-        {
-            get
-            {
-                switch (VerticalAlignment)
-                {
-                    case VerticalAlignment.Top:
-                        return VertAlignType.Top;
-                    case VerticalAlignment.Center:
-                        return VertAlignType.Middle;
-                    case VerticalAlignment.Bottom:
-                        return VertAlignType.Bottom;
-                    default:
-                        return VertAlignType.Middle;
-                }
-            }
-            set
-            {
-                switch (value)
-                {
-                    case VertAlignType.Top:
-                        VerticalAlignment = VerticalAlignment.Top;
-                        break;
-                    case VertAlignType.Middle:
-                        VerticalAlignment = VerticalAlignment.Center;
-                        break;
-                    case VertAlignType.Bottom:
-                        VerticalAlignment = VerticalAlignment.Bottom;
-                        break;
-                    default:
-                        VerticalAlignment = VerticalAlignment.Top;
-                        break;
-                }
-            }
-        }
-
-        public AutoSizeType autoSize
-        {
-            get { return _autoSize; }
-            set
-            {
-                if (_autoSize != value)
-                {
-                    _autoSize = value;
-                    switch (_autoSize)
+                    if ((element.status & 4) == 0) //not added
                     {
-                        case AutoSizeType.None:
-                        case AutoSizeType.Shrink:
-                            FitContent = false;
-                            ClipContents = true;
-                            AutowrapMode = TextServer.AutowrapMode.WordSmart;
-                            break;
-                        case AutoSizeType.Both:
-                            FitContent = true;
-                            ClipContents = false;
-                            AutowrapMode = TextServer.AutowrapMode.Off;
-                            break;
-                        case AutoSizeType.Height:
-                            FitContent = true;
-                            ClipContents = false;
-                            AutowrapMode = TextServer.AutowrapMode.WordSmart;
-                            break;
-                        case AutoSizeType.Ellipsis:
-                            FitContent = false;
-                            ClipContents = true;
-                            AutowrapMode = TextServer.AutowrapMode.WordSmart;
-                            break;
+                        element.status |= 4;
+                        element.htmlObject.Add();
                     }
-
+                }
+                else
+                {
+                    if ((element.status & 4) != 0) //added
+                    {
+                        element.status &= 251;
+                        element.htmlObject.Remove();
+                    }
                 }
             }
         }
-        public bool singleLine
+
+        
+        public override void Dispose()
         {
-            get { return _singleLine; }
-            set
+            CleanupObjects();
+            base.Dispose();
+        }
+
+        internal void CleanupObjects()
+        {
+            int count = htmlElements.Count;
+            for (int i = 0; i < count; i++)
             {
-                if (_singleLine != value)
+                HtmlElement element = htmlElements[i];
+                if (element.htmlObject != null)
                 {
-                    _singleLine = value;
-                    if (_singleLine)
+                    element.htmlObject.Remove();
+                    htmlPageContext.FreeObject(element.htmlObject);
+                }
+            }
+            htmlElements.Clear();
+        }
+
+        virtual internal void RefreshObjects()
+        {
+            int count = htmlElements.Count;
+            for (int i = 0; i < count; i++)
+            {
+                HtmlElement element = htmlElements[i];
+                if (element.htmlObject != null)
+                {
+                    if ((element.status & 3) == 0) //not (hidden and clipped)
                     {
-                        AutowrapMode = TextServer.AutowrapMode.Off;
-                        Text = Text.Replace("\n", "");
+                        if ((element.status & 4) == 0) //not added
+                        {
+                            element.status |= 4;
+                            element.htmlObject.Add();
+                        }
                     }
                     else
                     {
-                        autoSize = _autoSize;
+                        if ((element.status & 4) != 0) //added
+                        {
+                            element.status &= 251;
+                            element.htmlObject.Remove();
+                        }
                     }
                 }
-
-            }
-        }
-
-        public int stroke
-        {
-            get { return GetThemeConstant("outline_size"); }
-            set { AddThemeConstantOverride("outline_size", value); }
-        }
-        public Color strokeColor
-        {
-            get { return GetThemeColor("font_outline_color"); }
-            set { AddThemeColorOverride("font_outline_color", value); }
-        }
-        public Vector2 shadowOffset
-        {
-            get
-            {
-                return _shadowOffset;
-            }
-            set
-            {
-                if (!Mathf.IsEqualApprox(_shadowOffset.X, value.X) || !Mathf.IsEqualApprox(_shadowOffset.Y, value.Y))
-                {
-                    _shadowOffset = value;
-                    AddThemeConstantOverride("shadow_offset_x", Mathf.RoundToInt(_shadowOffset.X));
-                    AddThemeConstantOverride("shadow_offset_y", Mathf.RoundToInt(_shadowOffset.Y));
-                    AddThemeConstantOverride("shadow_outline_size", Mathf.RoundToInt(_shadowOffset.Length()));
-                }
-            }
-        }
-        public Color shadowColor
-        {
-            get
-            {
-                return GetThemeColor("font_shadow_color");
-            }
-            set
-            {
-                AddThemeColorOverride("font_shadow_color", value);
-            }
-        }
-        public Vector2 size
-        {
-            get { return Size; }
-            set { Size = value; }
-        }
-        public float width
-        {
-            get { return Size.X; }
-            set { Size = new Vector2(value, Size.Y); }
-        }
-        public float height
-        {
-            get { return Size.Y; }
-            set { Size = new Vector2(Size.X, value); }
-        }
-        public int maxWidth
-        {
-            get { return _maxWidth; }
-            set
-            {
-                if (_maxWidth != value)
-                {
-                    _maxWidth = value;
-                    if (Size.X > _maxWidth)
-                        Size = new Vector2(_maxWidth, Size.Y);
-                }
-            }
-        }
-        public string text
-        {
-            get { return Text; }
-            set
-            {
-                if (_singleLine)
-                    Text = value.Replace("\n", "");
-                else
-                    Text = value;
-            }
-        }
-
-        public bool ubbEnabled
-        {
-            get { return BbcodeEnabled; }
-            set { BbcodeEnabled = value; }
-        }
-
-        protected void OnSizeChanged()
-        {
-            if (_maxWidth > 0 && Size.X > _maxWidth)
-            {
-                Size = new Vector2(_maxWidth, Size.Y);
             }
         }
     }

@@ -26,7 +26,7 @@ namespace FairyGUI
             else
                 _textField = (GTextField)_owner;
 
-            _default = _textField.fontSize;
+            _default = _textField.textFormat.size;
             _storage = new Dictionary<string, int>();
         }
 
@@ -49,7 +49,9 @@ namespace FairyGUI
             if (!_storage.TryGetValue(_controller.selectedPageId, out cv))
                 cv = _default;
 
-            _textField.fontSize = cv;
+            TextFormat tf = _textField.textFormat;
+            tf.size = cv;
+            _textField.textFormat = tf;
 
             _owner._gearLocked = false;
         }
@@ -57,7 +59,7 @@ namespace FairyGUI
         override public void UpdateState()
         {
             if (_textField != null)
-                _storage[_controller.selectedPageId] = _textField.fontSize;
+                _storage[_controller.selectedPageId] = _textField.textFormat.size;
         }
     }
 }

@@ -373,7 +373,7 @@ namespace FairyGUI
 
                 if (_width == contentWidth && _height == contentHeight)
                 {
-                    _content.position = Vector2.Zero;
+                    _content.SetXY(0, 0);
                     _content.Scale = Vector2.One;
                     return;
                 }
@@ -436,7 +436,7 @@ namespace FairyGUI
                 ny = this.height - contentHeight;
             else
                 ny = 0;
-            _content.position = new Vector2(nx, ny);
+            _content.SetXY(nx, ny);
         }
 
         protected void ClearContent()

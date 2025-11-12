@@ -39,7 +39,7 @@ namespace FairyGUI
         public UIObjectFactory.GComponentCreator extensionCreator;
 
         //font
-        public Font bitmapFont;
+        public BitmapFont bitmapFont;
 
         //sound
         public NAudioClip audioClip;

@@ -21,11 +21,12 @@ namespace FairyGUI
         /// 
         /// </summary>
         public Key keyCode { get; internal set; }
+        public bool echo { get; internal set; }
 
         /// <summary>
         /// 
         /// </summary>
-        public long character { get; internal set; }
+        public char character { get; internal set; }
 
         /// <summary>
         /// 

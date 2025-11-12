@@ -252,6 +252,13 @@ namespace FairyGUI.Utils
             surfaceTool.SetColor(vertColor);
             surfaceTool.AddVertex(Vertex);
         }
+        public static void MeshAddVertex(SurfaceTool surfaceTool, float X, float Y, float U, float V, Color vertColor)
+        {
+            Vector3 Vertex = new Vector3(X, Y, 0);
+            surfaceTool.SetColor(vertColor);
+            surfaceTool.SetUV(new Vector2(U, V));
+            surfaceTool.AddVertex(Vertex);
+        }
         public static void MeshAddVertex(SurfaceTool surfaceTool, Vector3 vert, Color vertColor)
         {
             surfaceTool.SetColor(vertColor);
@@ -720,7 +727,7 @@ namespace FairyGUI.Utils
             }
             return true;
         }
-        
+
         /// <summary>
         /// 从 srcTex 的指定区域提取像素，反转 Alpha 后生成新的 Texture2D。
         /// </summary>

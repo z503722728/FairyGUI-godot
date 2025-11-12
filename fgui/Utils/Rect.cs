@@ -566,5 +566,18 @@ namespace FairyGUI
             return Mathf.IsEqualApprox(m_XMin, target.m_XMin) && Mathf.IsEqualApprox(m_YMin, target.m_YMin) &&
                 Mathf.IsEqualApprox(m_Width, target.m_Width) && Mathf.IsEqualApprox(m_Height, target.m_Height);
         }
+
+        public static implicit operator Rect(Rect2 value)
+        {
+            return new Rect(value.Position, value.Size);
+        }
+        public static implicit operator Rect2(Rect value)
+        {
+            return new Rect2(value.position, value.size);
+        }
+        public static Rect operator +(Rect rect, Vector2 vec)
+        {
+            return new Rect(rect.position + vec, rect.size);
+        }
     }
 }

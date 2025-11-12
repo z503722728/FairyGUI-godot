@@ -64,50 +64,104 @@ namespace FairyGUI
                 }
             }
         }
-        public Vector2 position
+        public float X
         {
-            get { return Position; }
+            get { return Position.X; }
+            set { SetXY(value, Position.Y); }
+        }
+        public float Y
+        {
+            get { return Position.Y; }
+            set { SetXY(Position.X, value); }
+        }
+        public void SetXY(float x, float y)
+        {
+            Position = new Vector2(x, y);
+            if (maskOwner != null)
+                QueueRedraw();
+        }
+        public void SetPosition(Vector2 pos)
+        {
+            Position = pos;
+            if (maskOwner != null)
+                QueueRedraw();
+        }
+        public float width
+        {
+            get { return Size.X; }
             set
             {
-                Position = value;
-                if (maskOwner != null)
-                    QueueRedraw();
+                SetSize(value, Size.Y);
             }
+        }
+        public float height
+        {
+            get { return Size.Y; }
+            set
+            {
+                SetSize(Size.X, value);
+            }
+        }
+        public void SetSize(float w, float h)
+        {
+            if (!Mathf.IsEqualApprox(w, Size.X) || !Mathf.IsEqualApprox(h, Size.Y))
+                Size = new Vector2(w, h);
+        }
+        public void SetSize(Vector2 size)
+        {
+            if (!Size.IsEqualApprox(size))
+                Size = size;
         }
         public BlendMode blendMode
         {
             get
             {
-                switch (_material.BlendMode)
+                if (_material != null)
                 {
-                    case CanvasItemMaterial.BlendModeEnum.Mix:
-                        return BlendMode.Normal;
-                    case CanvasItemMaterial.BlendModeEnum.Add:
-                        return BlendMode.Add;
-                    case CanvasItemMaterial.BlendModeEnum.Mul:
-                        return BlendMode.Multiply;
-                    case CanvasItemMaterial.BlendModeEnum.PremultAlpha:
-                        return BlendMode.Off;
-                    default:
-                        return BlendMode.None;
+                    switch (_material.BlendMode)
+                    {
+                        case CanvasItemMaterial.BlendModeEnum.Mix:
+                            return BlendMode.Normal;
+                        case CanvasItemMaterial.BlendModeEnum.Add:
+                            return BlendMode.Add;
+                        case CanvasItemMaterial.BlendModeEnum.Mul:
+                            return BlendMode.Multiply;
+                        case CanvasItemMaterial.BlendModeEnum.PremultAlpha:
+                            return BlendMode.Off;
+                        default:
+                            return BlendMode.None;
+                    }
+                }
+                else
+                {
+                    return BlendMode.Normal;
                 }
             }
             set
             {
+                CanvasItemMaterial.BlendModeEnum blendMode = CanvasItemMaterial.BlendModeEnum.PremultAlpha;
                 switch (value)
                 {
                     case BlendMode.Normal:
-                        _material.BlendMode = CanvasItemMaterial.BlendModeEnum.Mix;
+                        blendMode = CanvasItemMaterial.BlendModeEnum.Mix;
                         break;
                     case BlendMode.Add:
-                        _material.BlendMode = CanvasItemMaterial.BlendModeEnum.Add;
+                        blendMode = CanvasItemMaterial.BlendModeEnum.Add;
                         break;
                     case BlendMode.Multiply:
-                        _material.BlendMode = CanvasItemMaterial.BlendModeEnum.Mul;
+                        blendMode = CanvasItemMaterial.BlendModeEnum.Mul;
                         break;
                     default:
-                        _material.BlendMode = CanvasItemMaterial.BlendModeEnum.PremultAlpha;
+                        blendMode = CanvasItemMaterial.BlendModeEnum.PremultAlpha;
                         break;
+                }
+                if (_material == null || _material.BlendMode != blendMode)
+                {
+                    _material = MaterialManager.inst.GetStandardMaterial(blendMode);
+                    if (_material != null)
+                    {
+                        Material = _material;
+                    }
                 }
             }
         }
@@ -134,9 +188,6 @@ namespace FairyGUI
         {
             //Name = "Image";
             MouseFilter = MouseFilterEnum.Ignore;
-            _material = new CanvasItemMaterial();
-            _material.LightMode = CanvasItemMaterial.LightModeEnum.Unshaded;
-            Material = _material;
             _mesh = new ArrayMesh();
             _surfaceTool = new SurfaceTool();
         }
@@ -406,9 +457,9 @@ namespace FairyGUI
                 vertexCount += 4;
             }
 
-            _surfaceTool.GenerateNormals();
-            // if (_material != null)
-            //     _surfaceTool.SetMaterial(_material);
+            // _surfaceTool.GenerateNormals();
+            if (_material != null)
+                _surfaceTool.SetMaterial(_material);
             _surfaceTool.Commit(_mesh);
 
             if (reserveDraw)
@@ -446,7 +497,7 @@ namespace FairyGUI
                     }
                 }
                 DrawOutBound(vertexCount);
-                _surfaceTool.GenerateNormals();
+                // _surfaceTool.GenerateNormals();
                 _surfaceTool.Commit(_outBoundMesh);
             }
         }

@@ -1146,7 +1146,7 @@ namespace FairyGUI
                 }
 
                 UpdateClipRect();
-                container.position = new Vector2(_margin.left, _margin.top);
+                container.SetXY(_margin.left, _margin.top);
             }
             else if (_margin.left != 0 || _margin.top != 0)
             {
@@ -1154,7 +1154,7 @@ namespace FairyGUI
                 {
                     displayObject = AddParentContainer(container);
                 }
-                container.position = new Vector2(_margin.left, _margin.top);
+                container.SetXY(_margin.left, _margin.top);
             }
         }
 
@@ -1166,7 +1166,7 @@ namespace FairyGUI
             {
                 float w = this.width - (_margin.left + _margin.right);
                 float h = this.height - (_margin.top + _margin.bottom);
-                _clipContainer.position = new Vector2(_margin.left, _margin.top);
+                _clipContainer.SetXY(_margin.left, _margin.top);
                 _clipContainer.Size = new Vector2(w, h);
             }
         }

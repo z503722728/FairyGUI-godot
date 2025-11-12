@@ -10,40 +10,41 @@ namespace FairyGUI
     /// </summary>
     public class GTextField : GObject, ITextColorGear
     {
-        protected ITextField _textField;
+        protected TextField _textField;
         protected string _text;
+        protected bool _ubbEnabled;
         protected bool _updatingSize;
         protected Dictionary<string, string> _templateVars;
 
         public GTextField()
             : base()
         {
-            _textField.font = UIConfig.defaultFont;
-            _textField.fontSize = 12;
-            _textField.fontColor = Colors.Black;
-            _textField.lineSpacing = 3;
+            TextFormat tf = _textField.textFormat;
+            tf.font = UIConfig.defaultFont;
+            tf.size = 12;
+            tf.color = Colors.Black;
+            tf.lineSpacing = 3;
+            tf.letterSpacing = 0;
+            _textField.textFormat = tf;
+
             _text = string.Empty;
             _textField.autoSize = AutoSizeType.Both;
-            touchable = false;
+            _textField.wordWrap = false;
         }
 
         override protected void CreateDisplayObject()
         {
-            var obj = new TextField(this);
-            obj.Resized += OnTextFieldSizeChanged;
-            displayObject = obj;
-            _textField = obj;
+            _textField = new TextField();
+            _textField.gOwner = this;
+            displayObject = _textField;
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
         override public string text
         {
             get
             {
                 if (this is GTextInput)
-                    _text = ((GTextInput)this)._textField.text;
+                    _text = ((GTextInput)this).inputTextField.text;
                 return _text;
             }
             set
@@ -52,7 +53,6 @@ namespace FairyGUI
                     value = string.Empty;
                 _text = value;
                 SetTextFieldText();
-                UpdateGear(6);
             }
         }
 
@@ -63,7 +63,10 @@ namespace FairyGUI
                 str = ParseTemplate(str);
 
             _textField.maxWidth = maxWidth;
-            _textField.text = str;
+            if (_ubbEnabled)
+                _textField.htmlText = UBBParser.inst.Parse(XMLUtils.EncodeString(str));
+            else
+                _textField.text = str;
         }
 
         public Dictionary<string, string> templateVars
@@ -80,12 +83,6 @@ namespace FairyGUI
             }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <param name="name"></param>
-        /// <param name="value"></param>
-        /// <returns></returns>
         public GTextField SetVar(string name, string value)
         {
             if (_templateVars == null)
@@ -95,14 +92,15 @@ namespace FairyGUI
             return this;
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
         public void FlushVars()
         {
             SetTextFieldText();
         }
 
+        public bool HasCharacter(char ch)
+        {
+            return _textField.HasCharacter(ch);
+        }
 
         protected string ParseTemplate(string template)
         {
@@ -156,35 +154,31 @@ namespace FairyGUI
             return buffer.ToString();
         }
 
-        public ITextField textField { get { return _textField; } }
-
-        public string font
+        public TextFormat textFormat
         {
-            get { return _textField.font; }
-            set { _textField.font = value; }
+            get
+            {
+                return _textField.textFormat;
+            }
+            set
+            {
+                _textField.textFormat = value;
+            }
         }
 
-        public int fontSize
-        {
-            get { return _textField.fontSize; }
-            set { _textField.fontSize = value; }
-        }
-
-
-        /// <summary>
-        /// 
-        /// </summary>
         public Color color
         {
             get
             {
-                return _textField.fontColor;
+                return _textField.textFormat.color;
             }
             set
             {
-                if (_textField.fontColor != value)
+                if (_textField.textFormat.color != value)
                 {
-                    _textField.fontColor = value;
+                    TextFormat tf = _textField.textFormat;
+                    tf.color = value;
+                    _textField.textFormat = tf;
                     UpdateGear(4);
                 }
             }
@@ -202,13 +196,13 @@ namespace FairyGUI
             set { _textField.verticalAlign = value; }
         }
 
-        public virtual bool singleLine
+        public bool singleLine
         {
             get { return _textField.singleLine; }
             set { _textField.singleLine = value; }
         }
 
-        public int stroke
+        public float stroke
         {
             get { return _textField.stroke; }
             set { _textField.stroke = value; }
@@ -230,55 +224,91 @@ namespace FairyGUI
             set { _textField.shadowOffset = value; }
         }
 
+        public bool UBBEnabled
+        {
+            get { return _ubbEnabled; }
+            set { _ubbEnabled = value; }
+        }
+
         public AutoSizeType autoSize
         {
             get { return _textField.autoSize; }
             set
             {
                 _textField.autoSize = value;
+                if (value == AutoSizeType.Both)
+                {
+                    _textField.wordWrap = false;
 
+                    if (!underConstruct)
+                        this.SetSize(_textField.textWidth, _textField.textHeight);
+                }
+                else
+                {
+                    _textField.wordWrap = true;
+
+                    if (value == AutoSizeType.Height)
+                    {
+                        if (!underConstruct)
+                        {
+                            _textField.Size = new Vector2(this.width, _textField.Size.Y);
+                            this.height = _textField.textHeight;
+                        }
+                    }
+                    else
+                        _textField.Size = new Vector2(this.width, this.height);
+                }
             }
         }
 
         public float textWidth
         {
-            get { return _textField.width; }
+            get { return _textField.textWidth; }
         }
 
         public float textHeight
         {
-            get { return _textField.height; }
+            get { return _textField.textHeight; }
         }
 
-        public bool ubbEnabled
+        public void UpdateSize(float X, float Y)
         {
-            get { return _textField.ubbEnabled; }
-            set { _textField.ubbEnabled = value; }
-        }
+            if (_updatingSize)
+                return;
 
-        protected void OnTextFieldSizeChanged()
-        {
             _updatingSize = true;
-            size = _textField.size;
+
+            if (_textField.autoSize == AutoSizeType.Both)
+            {
+                _textField.EnsureSizeCorrect();
+                this.SetSize(X, Y);
+            }
+            else if (_textField.autoSize == AutoSizeType.Height)
+            {
+                _textField.EnsureSizeCorrect();
+                this.height = Y;
+            }
+            UpdateGear(6);
             _updatingSize = false;
         }
 
         override protected void HandleSizeChanged(bool fromNode)
         {
-            base.HandleSizeChanged(fromNode);
             if (_updatingSize)
                 return;
 
             if (underConstruct)
-                _textField.size = size;
+                _textField.Size = new Vector2(this.width, this.height);
             else if (_textField.autoSize != AutoSizeType.Both)
             {
                 if (_textField.autoSize == AutoSizeType.Height)
                 {
-                    _textField.width = this.width;
+                    _textField.Size = new Vector2(this.width, _textField.Size.Y);//先调整宽度，让文本重排
+                    if (_text != string.Empty) //文本为空时，1是本来就不需要调整， 2是为了防止改掉文本为空时的默认高度，造成关联错误
+                        SetSizeDirectly(this.width, _textField.Size.Y);
                 }
                 else
-                    _textField.size = size;
+                    _textField.Size = new Vector2(this.width, this.height);
             }
         }
 
@@ -288,43 +318,33 @@ namespace FairyGUI
 
             buffer.Seek(beginPos, 5);
 
-            var @font = buffer.ReadS();
-            var @fontSize = buffer.ReadShort();
-            var @fontColor = buffer.ReadColor();
-            var @align = (AlignType)buffer.ReadByte();
-            var @verticalAlign = (VertAlignType)buffer.ReadByte();
-            var @lineSpacing = buffer.ReadShort();
-            //tf.letterSpacing = buffer.ReadShort();            
-            buffer.Skip(2);
-            var @ubbEnabled = buffer.ReadBool();
-            var @autoSize = (AutoSizeType)buffer.ReadByte();
-            // tf.underline = buffer.ReadBool();
-            // tf.italic = buffer.ReadBool();
-            // tf.bold = buffer.ReadBool();
-            buffer.Skip(3);
+            TextFormat tf = _textField.textFormat;
+
+            tf.font = buffer.ReadS();
+            tf.size = buffer.ReadShort();
+            tf.color = buffer.ReadColor();
+            this.align = (AlignType)buffer.ReadByte();
+            this.verticalAlign = (VertAlignType)buffer.ReadByte();
+            tf.lineSpacing = buffer.ReadShort();
+            tf.letterSpacing = buffer.ReadShort();
+            _ubbEnabled = buffer.ReadBool();
+            this.autoSize = (AutoSizeType)buffer.ReadByte();
+            tf.underline = buffer.ReadBool();
+            tf.italic = buffer.ReadBool();
+            tf.bold = buffer.ReadBool();
             this.singleLine = buffer.ReadBool();
-            _textField.font = @font;
-            _textField.fontSize = fontSize;
-            _textField.fontColor = @fontColor;
-            this.align = (AlignType)@align;
-            this.verticalAlign = (VertAlignType)@verticalAlign;
-            _textField.lineSpacing = @lineSpacing;
-
-            _textField.ubbEnabled = @ubbEnabled;
-            this.autoSize = (AutoSizeType)@autoSize;
-
             if (buffer.ReadBool())
             {
-                _textField.strokeColor = buffer.ReadColor();
-                _textField.stroke = (int)buffer.ReadFloat();
+                tf.outlineColor = buffer.ReadColor();
+                tf.outline = buffer.ReadFloat();
             }
 
             if (buffer.ReadBool())
             {
-                _textField.shadowColor = buffer.ReadColor();
+                tf.shadowColor = buffer.ReadColor();
                 float f1 = buffer.ReadFloat();
                 float f2 = buffer.ReadFloat();
-                _textField.shadowOffset = new Vector2(f1, f2);
+                tf.shadowOffset = new Vector2(f1, f2);
             }
 
             if (buffer.ReadBool())
@@ -332,16 +352,17 @@ namespace FairyGUI
 
             if (buffer.version >= 3)
             {
-                // tf.strikethrough = buffer.ReadBool();
-                // #if FAIRYGUI_TMPRO
-                //                 tf.faceDilate = buffer.ReadFloat();
-                //                 tf.outlineSoftness = buffer.ReadFloat();
-                //                 tf.underlaySoftness = buffer.ReadFloat();
-                // #else
-                buffer.Skip(13);
-                // #endif
+                tf.strikethrough = buffer.ReadBool();
+#if FAIRYGUI_TMPRO
+                tf.faceDilate = buffer.ReadFloat();
+                tf.outlineSoftness = buffer.ReadFloat();
+                tf.underlaySoftness = buffer.ReadFloat();
+#else
+                buffer.Skip(12);
+#endif
             }
 
+            _textField.textFormat = tf;
         }
 
         override public void Setup_AfterAdd(ByteBuffer buffer, int beginPos)

@@ -15,7 +15,7 @@ namespace FairyGUI
         {
         }
 
-       
+
 
         /// <summary>
         /// Icon of the label.
@@ -120,7 +120,7 @@ namespace FairyGUI
             {
                 GTextField tf = GetTextField();
                 if (tf != null)
-                    return tf.textField.fontSize;
+                    return tf.textFormat.size;
                 else
                     return 0;
             }
@@ -129,7 +129,9 @@ namespace FairyGUI
                 GTextField tf = GetTextField();
                 if (tf != null)
                 {
-                    tf.textField.fontSize = value;
+                    TextFormat format = tf.textFormat;
+                    format.size = value;
+                    tf.textFormat = format;
                 }
             }
         }
@@ -206,7 +208,7 @@ namespace FairyGUI
                         input.maxLength = iv;
                     iv = buffer.ReadInt();
                     if (iv != 0)
-                        input.keyboardType = (VirtualKeyboardType)iv;
+                        input.keyboardType = InputTextField.TranslateKeyboardType((FairyGUIVirtualKeyboardType)iv);
                     if (buffer.ReadBool())
                         input.displayAsPassword = true;
                 }

@@ -11,7 +11,14 @@ namespace FairyGUI
         bool visible { get; set; }
         float skewX { get; set; }
         float skewY { get; set; }
-        Vector2 position { get; set; }
+        float X { get; set; }
+        float Y { get; set; }
+        void SetXY(float x, float y);
+        void SetPosition(Vector2 pos);
+        public float width { get; set; }
+        public float height { get; set; }
+        void SetSize(float w, float h);
+        void SetSize(Vector2 size);
         BlendMode blendMode { get; set; }
         event System.Action<double> onUpdate;
     }

@@ -1048,10 +1048,10 @@ namespace FairyGUI
                     return item.audioClip;
 
                 case PackageItemType.Font:
-                // if (item.bitmapFont == null)
-                //     LoadFont(item);
+                    if (item.bitmapFont == null)
+                        LoadFont(item);
 
-                // return item.bitmapFont;
+                    return item.bitmapFont;
 
                 case PackageItemType.MovieClip:
                     if (item.frames == null)
@@ -1290,144 +1290,144 @@ namespace FairyGUI
             }
         }
 
-        // void LoadFont(PackageItem item)
-        // {
-        //     FontFile font = new FontFile();
-        //     font.FontName = URL_PREFIX + this.id + item.id;
-        //     item.bitmapFont = font;
-        //     ByteBuffer buffer = item.rawData;
+        void LoadFont(PackageItem item)
+        {
+            BitmapFont font = new BitmapFont();
+            font.name = URL_PREFIX + this.id + item.id;
+            item.bitmapFont = font;
+            ByteBuffer buffer = item.rawData;
 
-        //     buffer.Seek(0, 0);
+            buffer.Seek(0, 0);
 
-        //     bool ttf = buffer.ReadBool();
-        //     font.canTint = buffer.ReadBool();
-        //     font.resizable = buffer.ReadBool();
-        //     font.hasChannel = buffer.ReadBool();
-        //     int fontSize = buffer.ReadInt();
-        //     int xadvance = buffer.ReadInt();
-        //     int lineHeight = buffer.ReadInt();
+            bool ttf = buffer.ReadBool();
+            font.canTint = buffer.ReadBool();
+            font.resizable = buffer.ReadBool();
+            font.hasChannel = buffer.ReadBool();
+            int fontSize = buffer.ReadInt();
+            int xadvance = buffer.ReadInt();
+            int lineHeight = buffer.ReadInt();
 
-        //     float texScaleX = 1;
-        //     float texScaleY = 1;
-        //     int bgX;
-        //     int bgY;
-        //     int bgWidth;
-        //     int bgHeight;
+            float texScaleX = 1;
+            float texScaleY = 1;
+            int bgX;
+            int bgY;
+            int bgWidth;
+            int bgHeight;
 
-        //     NTexture mainTexture = null;
-        //     AtlasSprite mainSprite = null;
-        //     if (ttf && _sprites.TryGetValue(item.id, out mainSprite))
-        //     {
-        //         mainTexture = (NTexture)GetItemAsset(mainSprite.atlas);
-        //         texScaleX = mainTexture.root.uvRect.width / mainTexture.width;
-        //         texScaleY = mainTexture.root.uvRect.height / mainTexture.height;
-        //     }
+            NTexture mainTexture = null;
+            AtlasSprite mainSprite = null;
+            if (ttf && _sprites.TryGetValue(item.id, out mainSprite))
+            {
+                mainTexture = (NTexture)GetItemAsset(mainSprite.atlas);
+                texScaleX = mainTexture.root.uvRect.width / mainTexture.width;
+                texScaleY = mainTexture.root.uvRect.height / mainTexture.height;
+            }
 
-        //     buffer.Seek(0, 1);
+            buffer.Seek(0, 1);
 
-        //     BitmapFont.BMGlyph bg;
-        //     int cnt = buffer.ReadInt();
-        //     for (int i = 0; i < cnt; i++)
-        //     {
-        //         int nextPos = buffer.ReadUshort();
-        //         nextPos += buffer.position;
+            BitmapFont.BMGlyph bg;
+            int cnt = buffer.ReadInt();
+            for (int i = 0; i < cnt; i++)
+            {
+                int nextPos = buffer.ReadUshort();
+                nextPos += buffer.position;
 
-        //         bg = new BitmapFont.BMGlyph();
-        //         char ch = buffer.ReadChar();
-        //         font.AddChar(ch, bg);
+                bg = new BitmapFont.BMGlyph();
+                char ch = buffer.ReadChar();
+                font.AddChar(ch, bg);
 
-        //         string img = buffer.ReadS();
-        //         int bx = buffer.ReadInt();
-        //         int by = buffer.ReadInt();
-        //         bgX = buffer.ReadInt();
-        //         bgY = buffer.ReadInt();
-        //         bgWidth = buffer.ReadInt();
-        //         bgHeight = buffer.ReadInt();
-        //         bg.advance = buffer.ReadInt();
-        //         bg.channel = buffer.ReadByte();
-        //         //The texture channel where the character image is found (1 = blue, 2 = green, 4 = red, 8 = alpha, 15-all).
-        //         if (bg.channel == 1)
-        //             bg.channel = 2;
-        //         else if (bg.channel == 2)
-        //             bg.channel = 1;
-        //         else if (bg.channel == 4)
-        //             bg.channel = 0;
-        //         else if (bg.channel == 8)
-        //             bg.channel = 3;
+                string img = buffer.ReadS();
+                int bx = buffer.ReadInt();
+                int by = buffer.ReadInt();
+                bgX = buffer.ReadInt();
+                bgY = buffer.ReadInt();
+                bgWidth = buffer.ReadInt();
+                bgHeight = buffer.ReadInt();
+                bg.advance = buffer.ReadInt();
+                bg.channel = buffer.ReadByte();
+                //The texture channel where the character image is found (1 = blue, 2 = green, 4 = red, 8 = alpha, 15-all).
+                if (bg.channel == 1)
+                    bg.channel = 2;
+                else if (bg.channel == 2)
+                    bg.channel = 1;
+                else if (bg.channel == 4)
+                    bg.channel = 0;
+                else if (bg.channel == 8)
+                    bg.channel = 3;
 
-        //         if (ttf)
-        //         {
-        //             if (mainSprite.rotated)
-        //             {
-        //                 bg.uv[0] = new Vector2((float)(by + bgHeight + mainSprite.rect.X) * texScaleX,
-        //                     1 - (float)(mainSprite.rect.yMax - bx) * texScaleY);
-        //                 bg.uv[1] = new Vector2(bg.uv[0].X - (float)bgHeight * texScaleX, bg.uv[0].Y);
-        //                 bg.uv[2] = new Vector2(bg.uv[1].X, bg.uv[0].Y + (float)bgWidth * texScaleY);
-        //                 bg.uv[3] = new Vector2(bg.uv[0].X, bg.uv[2].Y);
-        //             }
-        //             else
-        //             {
-        //                 bg.uv[0] = new Vector2((float)(bx + mainSprite.rect.X) * texScaleX,
-        //                     1 - (float)(by + bgHeight + mainSprite.rect.Y) * texScaleY);
-        //                 bg.uv[1] = new Vector2(bg.uv[0].X, bg.uv[0].Y + (float)bgHeight * texScaleY);
-        //                 bg.uv[2] = new Vector2(bg.uv[0].X + (float)bgWidth * texScaleX, bg.uv[1].Y);
-        //                 bg.uv[3] = new Vector2(bg.uv[2].X, bg.uv[0].Y);
-        //             }
+                if (ttf)
+                {
+                    if (mainSprite.rotated)
+                    {
+                        bg.uv[0] = new Vector2((float)(mainSprite.rect.X + by) * texScaleX,
+                            (float)(mainSprite.rect.yMax - bx) * texScaleY);
+                        bg.uv[1] = new Vector2(bg.uv[0].X - (float)bgHeight * texScaleX, bg.uv[0].Y);
+                        bg.uv[2] = new Vector2(bg.uv[1].X, bg.uv[0].Y + (float)bgWidth * texScaleY);
+                        bg.uv[3] = new Vector2(bg.uv[0].X, bg.uv[2].Y);
+                    }
+                    else
+                    {
+                        bg.uv[0] = new Vector2((float)(bx + mainSprite.rect.X) * texScaleX,
+                            (float)(by + mainSprite.rect.Y) * texScaleY);
+                        bg.uv[1] = new Vector2(bg.uv[0].X, bg.uv[0].Y + (float)bgHeight * texScaleY);
+                        bg.uv[2] = new Vector2(bg.uv[0].X + (float)bgWidth * texScaleX, bg.uv[1].Y);
+                        bg.uv[3] = new Vector2(bg.uv[2].X, bg.uv[0].Y);
+                    }
 
-        //             bg.lineHeight = lineHeight;
-        //             bg.x = bgX;
-        //             bg.y = bgY;
-        //             bg.width = bgWidth;
-        //             bg.height = bgHeight;
-        //         }
-        //         else
-        //         {
-        //             PackageItem charImg;
-        //             if (_itemsById.TryGetValue(img, out charImg))
-        //             {
-        //                 charImg = charImg.getBranch();
-        //                 bgWidth = charImg.width;
-        //                 bgHeight = charImg.height;
-        //                 charImg = charImg.getHighResolution();
-        //                 GetItemAsset(charImg);
-        //                 charImg.texture.GetUV(bg.uv);
+                    bg.lineHeight = lineHeight;
+                    bg.x = bgX;
+                    bg.y = bgY;
+                    bg.width = bgWidth;
+                    bg.height = bgHeight;
+                }
+                else
+                {
+                    PackageItem charImg;
+                    if (_itemsById.TryGetValue(img, out charImg))
+                    {
+                        charImg = charImg.getBranch();
+                        bgWidth = charImg.width;
+                        bgHeight = charImg.height;
+                        charImg = charImg.getHighResolution();
+                        GetItemAsset(charImg);
+                        charImg.texture.GetUV(bg.uv);
 
-        //                 texScaleX = (float)bgWidth / charImg.width;
-        //                 texScaleY = (float)bgHeight / charImg.height;
+                        texScaleX = (float)bgWidth / charImg.width;
+                        texScaleY = (float)bgHeight / charImg.height;
 
-        //                 bg.x = bgX + charImg.texture.offset.X * texScaleX;
-        //                 bg.y = bgY + charImg.texture.offset.Y * texScaleY;
-        //                 bg.width = charImg.texture.width * texScaleX;
-        //                 bg.height = charImg.texture.height * texScaleY;
+                        bg.x = bgX + charImg.texture.offset.X * texScaleX;
+                        bg.y = bgY + charImg.texture.offset.Y * texScaleY;
+                        bg.width = charImg.texture.width * texScaleX;
+                        bg.height = charImg.texture.height * texScaleY;
 
-        //                 if (mainTexture == null)
-        //                     mainTexture = charImg.texture.root;
-        //             }
+                        if (mainTexture == null)
+                            mainTexture = charImg.texture.root;
+                    }
 
-        //             if (fontSize == 0)
-        //                 fontSize = bgHeight;
+                    if (fontSize == 0)
+                        fontSize = bgHeight;
 
-        //             if (bg.advance == 0)
-        //             {
-        //                 if (xadvance == 0)
-        //                     bg.advance = bgX + bgWidth;
-        //                 else
-        //                     bg.advance = xadvance;
-        //             }
+                    if (bg.advance == 0)
+                    {
+                        if (xadvance == 0)
+                            bg.advance = bgX + bgWidth;
+                        else
+                            bg.advance = xadvance;
+                    }
 
-        //             bg.lineHeight = bgY < 0 ? bgHeight : (bgY + bgHeight);
-        //             if (bg.lineHeight < fontSize)
-        //                 bg.lineHeight = fontSize;
-        //         }
+                    bg.lineHeight = bgY < 0 ? bgHeight : (bgY + bgHeight);
+                    if (bg.lineHeight < fontSize)
+                        bg.lineHeight = fontSize;
+                }
 
-        //         buffer.position = nextPos;
-        //     }
+                buffer.position = nextPos;
+            }
 
-        //     font.size = fontSize;
-        //     font.mainTexture = mainTexture;
-        //     if (!font.hasChannel)
-        //         font.shader = ShaderConfig.imageShader;
-        // }
+            font.size = fontSize;
+            font.mainTexture = mainTexture;
+            // if (!font.hasChannel)
+            //     font.shader = ShaderConfig.imageShader;
+        }
 
         void LoadSpine(PackageItem item)
         {

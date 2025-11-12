@@ -9,77 +9,97 @@ namespace FairyGUI
     /// </summary>
     public class FontManager
     {
-        public static Dictionary<string, Font> sFontFactory = new Dictionary<string, Font>();
-        static public void RegisterFont(Font font, string alias = null)
+        static FontManager _inst;
+        public static FontManager inst
         {
-            sFontFactory[font.GetFontName()] = font;
-            if (alias != null)
-                sFontFactory[alias] = font;
+            get
+            {
+                if (_inst == null)
+                    _inst = new FontManager();
+                return _inst;
+            }
         }
-        static public void UnregisterFont(Font font)
+        public Dictionary<string, BaseFont> _fontFactory = new Dictionary<string, BaseFont>();
+        HashSet<BaseFont> _fontUpdateQueue = new HashSet<BaseFont>();
+        FontManager()
+        {
+            RenderingServer.FramePreDraw += OnFramePreDraw;
+        }
+        public void QueryUpdateFont(BaseFont font)
+        {
+            _fontUpdateQueue.Add(font);
+        }
+        void OnFramePreDraw()
+        {
+            foreach (var font in _fontUpdateQueue)
+            {
+                font.UpdateCacheTextures();
+            }
+            _fontUpdateQueue.Clear();
+        }
+        public void RegisterFont(BaseFont font, string alias = null)
+        {
+            _fontFactory[font.name] = font;
+            if (alias != null)
+                _fontFactory[alias] = font;
+        }
+        public void UnregisterFont(BaseFont font)
         {
             List<string> toDelete = new List<string>();
-            foreach (KeyValuePair<string, Font> kv in sFontFactory)
+            foreach (KeyValuePair<string, BaseFont> kv in _fontFactory)
             {
                 if (kv.Value == font)
                     toDelete.Add(kv.Key);
             }
 
             foreach (string key in toDelete)
-                sFontFactory.Remove(key);
+                _fontFactory.Remove(key);
         }
-        static public Font GetFont(string fontPath)
+        public BaseFont GetFont(string fontPath)
         {
             if (string.IsNullOrEmpty(fontPath))
             {
                 return fallbackFont;
             }
-            Font font;
+            BaseFont font;
             if (fontPath.StartsWith(UIPackage.URL_PREFIX))
             {
-                font = UIPackage.GetItemAssetByURL(fontPath) as Font;
+                font = UIPackage.GetItemAssetByURL(fontPath) as BaseFont;
                 if (font != null)
                     return font;
             }
 
-            if (sFontFactory.TryGetValue(fontPath, out font))
+            if (_fontFactory.TryGetValue(fontPath, out font))
                 return font;
-            if (fontPath.StartsWith("res://"))
+            font = DynamicFont.LoadFont(fontPath);
+            if (font != null)
             {
-                font = ResourceLoader.Load<Font>(fontPath);
-                if (font == null)
-                {
-                    GD.PushWarning($"font {fontPath} not found.");
-                    return fallbackFont;
-                }
+                RegisterFont(font, fontPath);
+                return font;
             }
             else
             {
-                SystemFont sysFont = new SystemFont();
-                sysFont.FontNames = new string[] { fontPath };
-                font = sysFont;
+                return fallbackFont;
             }
-            RegisterFont(font, fontPath);
-            return font;
         }
-        public static Font fallbackFont
+        BaseFont fallbackFont
         {
             get
             {
-                Font font;
-                if (!sFontFactory.TryGetValue("$default_font", out font))
+                BaseFont font;
+                if (!_fontFactory.TryGetValue("$default_font", out font))
                 {
-                    font = ThemeDB.FallbackFont;
+                    font = DynamicFont.LoadFont(UIConfig.defaultFont);
                     RegisterFont(font, "$default_font");
                 }
                 return font;
             }
         }
-        static public void Clear()
+        public void Clear()
         {
-            foreach (KeyValuePair<string, Font> kv in sFontFactory)
+            foreach (KeyValuePair<string, BaseFont> kv in _fontFactory)
                 kv.Value.Dispose();
-            sFontFactory.Clear();
+            _fontFactory.Clear();
         }
     }
 }

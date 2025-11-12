@@ -12,7 +12,7 @@ namespace FairyGUI
         /// <summary>
         /// 
         /// </summary>
-        protected RichTextField _richTextField;
+        public RichTextField richTextField { get; private set; }
 
         public GRichTextField()
             : base()
@@ -21,10 +21,29 @@ namespace FairyGUI
 
         override protected void CreateDisplayObject()
         {
-            _richTextField = new RichTextField(this);
-            _richTextField.Resized += OnTextFieldSizeChanged;
-            displayObject = _richTextField;
-            _textField = _richTextField;
+            richTextField = new RichTextField();
+            richTextField.gOwner = this;
+            displayObject = richTextField;
+            _textField = richTextField;
+        }
+
+        override protected void SetTextFieldText()
+        {
+            string str = _text;
+            if (_templateVars != null)
+                str = ParseTemplate(str);
+
+            _textField.maxWidth = maxWidth;
+            if (_ubbEnabled)
+                richTextField.htmlText = UBBParser.inst.Parse(str);
+            else
+                richTextField.htmlText = str;
+        }
+
+        public Dictionary<uint, Emoji> emojies
+        {
+            get { return richTextField.emojies; }
+            set { richTextField.emojies = value; }
         }
     }
 }

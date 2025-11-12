@@ -1,4 +1,5 @@
-﻿using FairyGUI;
+﻿using System;
+using FairyGUI;
 using FairyGUI.Utils;
 
 public class EmojiParser : UBBParser
@@ -16,16 +17,18 @@ public class EmojiParser : UBBParser
 
     private static string[] TAGS = new string[]
         { "88","am","bs","bz","ch","cool","dhq","dn","fd","gz","han","hx","hxiao","hxiu" };
-    public EmojiParser ()
+    public EmojiParser()
     {
         foreach (string ss in TAGS)
         {
-            this.handlers[":"+ss] = OnTag_Emoji;
+            this.handlers[":" + ss] = OnTag_Emoji;
         }
     }
 
     string OnTag_Emoji(string tagName, bool end, string attr)
     {
-        return "<img src='" + UIPackage.GetItemURL("Emoji", tagName.Substring(1).ToLower()) + "'/>";
+        int i = Array.IndexOf(TAGS, tagName.Substring(1).ToLower());
+        string ResName = $"1f6{i:D2}";
+        return "<img src='" + UIPackage.GetItemURL("Chat", ResName) + "'/>";
     }
 }

@@ -28,6 +28,14 @@ namespace FairyGUI
         bool haveTouchMonitorCount = false;
         public GObject touchTarget { get; private set; }
 
+        /// <summary>
+        /// 如果是true，表示使用屏幕上弹出的键盘输入文字。常见于移动设备。
+        /// 如果是false，表示是接受按键消息输入文字。常见于PC。
+        /// 一般来说，不需要设置，底层会自动根据系统环境设置正确的值。
+        /// </summary>
+        public static bool virtualKeyboardInput = false;
+        static bool _touchScreen = false;
+
         public static HashSet<GObject> allObject = new HashSet<GObject>();
 
         internal static int _clickTestThreshold = 10;
@@ -78,8 +86,13 @@ namespace FairyGUI
             int dx = ProjectSettings.GetSetting("display/window/size/viewport_width").AsInt32();
             int dy = ProjectSettings.GetSetting("display/window/size/viewport_height").AsInt32();
             string aspect = ProjectSettings.GetSetting("display/window/stretch/aspect").AsString();
+            double scale = ProjectSettings.GetSetting("display/window/stretch/scale").AsDouble();
+            string scale_mode = ProjectSettings.GetSetting("display/window/stretch/scale_mode").AsString();
             float screenWidth = Stage.width;
             float screenHeight = Stage.height;
+
+            if (scale_mode == "integer")
+                scale = Math.Floor(scale);
 
             if (screenWidth > screenHeight && dx < dy || screenWidth < screenHeight && dx > dy)
             {
@@ -99,6 +112,8 @@ namespace FairyGUI
                 _contentScaleFactor = (float)screenWidth / dx;
             else
                 _contentScaleFactor = (float)screenHeight / dy;
+
+            _contentScaleFactor = (float)(_contentScaleFactor * scale);
 
             if (_contentScaleFactor > 3)
                 _contentScaleLevel = 3; //x4
@@ -142,8 +157,7 @@ namespace FairyGUI
         /// </summary>
 
 
-        public static bool touchScreen { get { return OS.HasFeature("touchscreen"); } }
-
+        public static bool touchScreen { get { return _touchScreen; } }
         public static int width { get { return DisplayServer.WindowGetSize().X; } }
         public static int height { get { return DisplayServer.WindowGetSize().Y; } }
         public Stage() : base()
@@ -187,7 +201,7 @@ namespace FairyGUI
         {
             GD.Print("stage released");
             GRoot.Release();
-            FontManager.Clear();
+            FontManager.inst.Clear();
             foreach (var obj in allObject)
             {
                 obj.Dispose();
@@ -264,12 +278,14 @@ namespace FairyGUI
             }
             else if (evt is InputEventScreenTouch touch)
             {
+                _touchScreen = true;
                 GObject target = GRoot.inst.HitTest(touch.Position);
                 if (target != null)
                     HandleTouchEvents(touch, target);
             }
             else if (evt is InputEventScreenDrag tv)
             {
+                _touchScreen = true;
                 GObject target = GRoot.inst.HitTest(tv.Position);
                 if (target != null)
                     HandleTouchMoveEvents(tv, target);
@@ -286,6 +302,7 @@ namespace FairyGUI
             TouchInfo touch = _touches[0];
             touch.target = sender;
             touch.keyCode = evt.Keycode;
+            touch.echo = evt.Echo;
             touch.keyModifiers = evt.GetModifiersMask();
             touch.character = evt.Unicode;
             touch.UpdateEvent();
@@ -507,7 +524,7 @@ namespace FairyGUI
                 {
                     element = _rollOutChain[i];
                     if (element.realRoot != null)
-                        element.DispatchEvent("onRollOut", null);
+                        element.DispatchEvent("onRollOut", touch.evt);
                 }
                 _rollOutChain.Clear();
             }
@@ -519,7 +536,7 @@ namespace FairyGUI
                 {
                     element = _rollOverChain[i];
                     if (element.realRoot != null)
-                        element.DispatchEvent("onRollOver", null);
+                        element.DispatchEvent("onRollOver", touch.evt);
                 }
                 _rollOverChain.Clear();
             }
@@ -573,7 +590,7 @@ namespace FairyGUI
             for (int j = 0; j < 5; j++)
                 _touches[j].Reset();
 
-            if (!touchScreen)
+            if (!_touchScreen)
                 _touches[0].touchId = 0;
         }
         public void CancelClick(int touchId)
@@ -621,7 +638,7 @@ namespace FairyGUI
                 }
             }
             return result;
-        }       
+        }
     }
 
     class TouchInfo
@@ -631,6 +648,7 @@ namespace FairyGUI
         public int touchId;
         public int clickCount;
         public Key keyCode;
+        public bool echo;
         public long character;
         public KeyModifierMask keyModifiers;
         public MouseButtonMask mouseModifiers;
@@ -673,6 +691,7 @@ namespace FairyGUI
             clickCount = 0;
             button = MouseButton.None;
             keyCode = Key.None;
+            echo = false;
             character = '\0';
             keyModifiers = 0;
             mouseModifiers = 0;
@@ -693,7 +712,8 @@ namespace FairyGUI
             evt.y = this.y;
             evt.clickCount = this.clickCount;
             evt.keyCode = this.keyCode;
-            evt.character = this.character;
+            evt.echo = this.echo;
+            evt.character = (char)this.character;
             evt.keyModifiers = this.keyModifiers;
             evt.mouseModifiers = this.mouseModifiers;
             evt.mouseWheelDelta = this.mouseWheelDelta;

@@ -14,7 +14,7 @@ namespace FairyGUI
         /// 4.x: Put the xxx.ttf into /Resources or /Resources/Fonts, and set defaultFont="xxx".
         /// 5.x: set defaultFont to system font name(or names joint with comma). e.g. defaultFont="Microsoft YaHei, SimHei"
         /// </summary>
-        public static string defaultFont = "";
+        public static string defaultFont = "Microsoft YaHei";
 
         /// <summary>
         /// Resource using in Window.ShowModalWait for locking the window.
@@ -150,6 +150,7 @@ namespace FairyGUI
         /// 
         /// </summary>
         public static Color inputHighlightColor = Color.Color8(255, 223, 141, 128);
+        public static Color imeCompositionHighlightColor = Color.Color8(0, 2, 114, 128);
 
         /// <summary>
         /// 
@@ -161,11 +162,7 @@ namespace FairyGUI
         /// </summary>
         public static bool depthSupportForPaintingMode = true;
 
-        /// <summary>
-        /// Indicates whether to draw extra 4 or 8 times to achieve stroke effect for textfield.
-        /// If it is true, that is the 8 times, otherwise it is the 4 times.
-        /// </summary>
-        public static bool enhancedTextOutlineEffect = false;
+        public static TextFormat.TextOutlineType textOutlineType = TextFormat.TextOutlineType.EightDir;
 
         /// <summary>
         /// Suggest to enable it on low dpi (e.g. 96dpi) screens.
@@ -174,6 +171,22 @@ namespace FairyGUI
 
         //UI所在的绘制层，越大越靠前
         public static int canvasLayer = 100;
+
+        //字形缓冲纹理大小
+        static int _glyphCacheTexSize = 1024;
+
+        public static int glyphCacheTexSize
+        {
+            get { return _glyphCacheTexSize; }
+            set { _glyphCacheTexSize = Mathf.NearestPo2(value); }
+        }
+        
+        //最小和最大字体大小，这是采样字体大小，不影响实际字体大小，但如果采样字体小于实体字体，显示效果就会变差，此设置有益于减少实际用于采样的字体数量
+        public static int minFontSize = 1;
+        public static int maxFontSize = -1;
+
+        //字体分级大小，如果设置了这个数组，那么采样字体就会采用里面最接近实际字体大小的尺寸，并且上面的最小和最大字体大小将不起作用，此设置有益于减少实际用于采样的字体数量
+        public static int[] fontSizeLevels = null;
 
         public enum ConfigKey
         {
@@ -201,7 +214,7 @@ namespace FairyGUI
             AllowSoftnessOnTopOrLeftSide,
             InputCaretSize,
             InputHighlightColor,
-            EnhancedTextOutlineEffect,
+            TextOutlineType,
             DepthSupportForPaintingMode,
             RichTextRowVerticalAlign,
             Branch,
@@ -350,8 +363,8 @@ namespace FairyGUI
                         UIConfig.depthSupportForPaintingMode = value.b;
                         break;
 
-                    case ConfigKey.EnhancedTextOutlineEffect:
-                        UIConfig.enhancedTextOutlineEffect = value.b;
+                    case ConfigKey.TextOutlineType:
+                        UIConfig.textOutlineType = (TextFormat.TextOutlineType)value.i;
                         break;
 
                     case ConfigKey.Branch:

@@ -186,9 +186,9 @@ namespace FairyGUI
                 region.width * root.uvRect.width / root.width, region.height * root.uvRect.height / root.height);
             if (rotated)
             {
-                float tmp = region.width;
+                float tmp = region.width;                
                 region.width = region.height;
-                region.height = tmp;
+                region.height = tmp;                
 
                 tmp = uvRect.width;
                 uvRect.width = uvRect.height;

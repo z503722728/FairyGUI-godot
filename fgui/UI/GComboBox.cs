@@ -62,7 +62,7 @@ namespace FairyGUI
 
         override protected void CreateDisplayObject()
         {
-            base.CreateDisplayObject();            
+            base.CreateDisplayObject();
         }
 
         /// <summary>
@@ -142,7 +142,7 @@ namespace FairyGUI
                 if (tf != null)
                     tf.color = value;
             }
-        }
+        } 
 
         /// <summary>
         /// 
@@ -153,7 +153,7 @@ namespace FairyGUI
             {
                 GTextField tf = GetTextField();
                 if (tf != null)
-                    return tf.fontSize;
+                    return tf.textFormat.size;
                 else
                     return 0;
             }
@@ -162,7 +162,9 @@ namespace FairyGUI
                 GTextField tf = GetTextField();
                 if (tf != null)
                 {
-                    tf.fontSize = value;
+                    TextFormat format = tf.textFormat;
+                    format.size = value;
+                    tf.textFormat = format;
                 }
             }
         }
