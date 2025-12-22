@@ -71,7 +71,7 @@ namespace FairyGUI
         GTweenCallback1 _hideScrollBarDelegate;
 
         GComponent _owner;
-        NContainer _maskContainer;
+        NClipContainer _maskContainer;
         NContainer _container;
         GScrollBar _hzScrollBar;
         GScrollBar _vtScrollBar;
@@ -90,7 +90,7 @@ namespace FairyGUI
         public static float TWEEN_TIME_DEFAULT = 0.3f; //惯性滚动的最小缓动时间
         public static float PULL_RATIO = 0.5f; //下拉过顶或者上拉过底时允许超过的距离占显示区域的比例
 
-        public ScrollPane(GComponent owner, NContainer clipContainer)
+        public ScrollPane(GComponent owner, NClipContainer clipContainer)
         {
             _onScroll = new EventListener(this, "onScroll");
             _onScrollEnd = new EventListener(this, "onScrollEnd");
@@ -239,8 +239,7 @@ namespace FairyGUI
         {
             RemoveEventListeners();
 
-            if (_tweening != 0 && _container != null)
-                _container.onUpdate -= _tweenUpdateDelegate;
+            Stage.inst.onUpdate -= _tweenUpdateDelegate;
 
             if (draggingPane == this)
                 draggingPane = null;
@@ -1265,7 +1264,7 @@ namespace FairyGUI
                 }
                 AdjustMaskContainer();
                 _maskContainer.Position += rect.position;
-                _maskContainer.Size = rect.size;
+                _maskContainer.size = rect.size;
             }
 
             if (_scrollType == ScrollType.Horizontal || _scrollType == ScrollType.Both)
@@ -2128,7 +2127,7 @@ namespace FairyGUI
         {
             _tweenTime = Vector2.Zero;
             _tweening = type;
-            _container.onUpdate += _tweenUpdateDelegate;
+            Stage.inst.onUpdate += _tweenUpdateDelegate;
             _lastTimerTriggerTime = Time.GetTicksMsec();
 
             UpdateScrollBarVisible();
@@ -2143,7 +2142,7 @@ namespace FairyGUI
             }
 
             _tweening = 0;
-            _container.onUpdate -= _tweenUpdateDelegate;
+            Stage.inst.onUpdate -= _tweenUpdateDelegate;
 
             UpdateScrollBarVisible();
 
@@ -2217,7 +2216,7 @@ namespace FairyGUI
             if (_owner.displayObject == null || _owner.displayObject.node.IsQueuedForDeletion())
             {
                 _tweening = 0;
-                _container.onUpdate -= _tweenUpdateDelegate;
+                Stage.inst.onUpdate -= _tweenUpdateDelegate;
                 return;
             }
 
@@ -2240,7 +2239,7 @@ namespace FairyGUI
             if (_tweenChange.X == 0 && _tweenChange.Y == 0)
             {
                 _tweening = 0;
-                _container.onUpdate -= _tweenUpdateDelegate;
+                Stage.inst.onUpdate -= _tweenUpdateDelegate;
 
                 LoopCheckingCurrent();
 

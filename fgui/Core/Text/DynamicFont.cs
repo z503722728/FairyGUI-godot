@@ -52,16 +52,14 @@ namespace FairyGUI
         Dictionary<int, GlyphInfo> _glyphDic = new Dictionary<int, GlyphInfo>();
         List<GlyphCacheTex> _cacheTexs = new List<GlyphCacheTex>();
         int _fontSize;
-        int _sampleSize;
         int _charMaxHeight;
 
         static int SAMPLE_GAP = 2;
 
 
-        public GlyphCache(int fontSize, int sampleSize, int charMaxHeight)
+        public GlyphCache(int fontSize, int charMaxHeight)
         {
             _fontSize = fontSize;
-            _sampleSize = sampleSize;
             _charMaxHeight = charMaxHeight;
         }
 
@@ -127,7 +125,7 @@ namespace FairyGUI
             info.rect = new Rect(cacheTex.lineLeft.xMin, cacheTex.lineLeft.yMin, rect.width, rect.height);
             info.offset = offset;
             info.advance = advance;
-            info.sizeR = rect.size / _sampleSize;
+            info.sizeR = rect.size / _fontSize;
             info.uvRect = new Rect(info.rect.xMin / cacheTex.img.GetWidth(), info.rect.yMin / cacheTex.img.GetHeight(), info.rect.width / cacheTex.img.GetWidth(), info.rect.height / cacheTex.img.GetWidth());
             info.offsetR = offset / _fontSize;
             info.advanceR = advance / _fontSize;
@@ -158,7 +156,6 @@ namespace FairyGUI
         Rid _fontRid;
         int _fontSize;
         int _normalizedFontSize;
-        int _sampleSize;
         int _outlineSize;
         int _charMaxHeight;
         TextFormat _format;
@@ -267,13 +264,13 @@ namespace FairyGUI
             return fontSize;
         }
 
-        GlyphCache GetGlyphCache(int fontSize, int sampleSize, int outlineSize, TextServer.FontStyle style)
+        GlyphCache GetGlyphCache(int fontSize, int outlineSize, TextServer.FontStyle style)
         {
             long key = (((int)style) & 0xFF) << 32 | (outlineSize & 0xFF) << 16 | fontSize & 0xFFFF;
             GlyphCache cache;
             if (_glyphCache.TryGetValue(key, out cache))
                 return cache;
-            cache = new GlyphCache(fontSize, sampleSize, _charMaxHeight);
+            cache = new GlyphCache(fontSize, _charMaxHeight);
             _glyphCache.Add(key, cache);
             return cache;
         }
@@ -281,7 +278,7 @@ namespace FairyGUI
         GlyphInfo GetGlyphInfo(int ch, float outlineSize)
         {
             int outline = Mathf.RoundToInt(outlineSize * OUTLINE_SCALE);
-            GlyphCache cache = GetGlyphCache(_normalizedFontSize, _sampleSize, outline, _style);
+            GlyphCache cache = GetGlyphCache(_normalizedFontSize, outline, _style);
             if (cache != null)
             {
                 GlyphInfo info = cache.GetGlyphInfo(ch);
@@ -328,30 +325,18 @@ namespace FairyGUI
             if (_fontSize == 0)
                 _fontSize = 1;
             _normalizedFontSize = NormalizeFontSize(_fontSize);
-            float oversampling = (float)_textSrv.FontGetOversampling(_fontRid);
-            float sampleSize;
-            if (oversampling > 0)
-                sampleSize = _normalizedFontSize * oversampling;
-            else
-                sampleSize = _normalizedFontSize * Stage.contentScaleFactor;
-            _charMaxHeight = Mathf.RoundToInt(_font.GetHeight(_normalizedFontSize));
             _style = 0;
             if (_format.bold)
             {
                 _style |= TextServer.FontStyle.Bold;
                 _textSrv.FontSetEmbolden(_fontRid, DEFAULT_BLOD_STRENGTH);
-                sampleSize *= 1.1f;
             }
             if (_format.italic)
             {
                 _style |= TextServer.FontStyle.Italic;
             }
-            _sampleSize = Mathf.FloorToInt(sampleSize);
             _outlineSize = Mathf.RoundToInt(_format.outline);
-            if (oversampling > 0)
-                _charMaxHeight = Mathf.RoundToInt((_font.GetHeight(_normalizedFontSize) + _outlineSize * 2) * oversampling);
-            else
-                _charMaxHeight = Mathf.RoundToInt((_font.GetHeight(_normalizedFontSize) + _outlineSize * 2) * Stage.contentScaleFactor);
+            _charMaxHeight = Mathf.RoundToInt(_font.GetHeight(_normalizedFontSize) + _outlineSize * 2);
             _format.FillVertexColors(vertexColors);
             _underLineOffset = float.NaN;
         }

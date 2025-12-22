@@ -10,15 +10,19 @@ namespace FairyGUI
     /// </summary>
     public class GTextField : GObject, ITextColorGear
     {
+        public delegate string TextTranslater(string Text);
         protected TextField _textField;
         protected string _text;
         protected bool _ubbEnabled;
         protected bool _updatingSize;
         protected Dictionary<string, string> _templateVars;
+        protected static TextTranslater _textTranslater;
 
         public GTextField()
             : base()
         {
+            touchable = false;
+            focusable = false;
             TextFormat tf = _textField.textFormat;
             tf.font = UIConfig.defaultFont;
             tf.size = 12;
@@ -34,7 +38,7 @@ namespace FairyGUI
 
         override protected void CreateDisplayObject()
         {
-            _textField = new TextField();
+            _textField = new TextField(this);
             _textField.gOwner = this;
             displayObject = _textField;
         }
@@ -58,7 +62,7 @@ namespace FairyGUI
 
         virtual protected void SetTextFieldText()
         {
-            string str = _text;
+            string str = TranslaterStr(_text);
             if (_templateVars != null)
                 str = ParseTemplate(str);
 
@@ -67,6 +71,17 @@ namespace FairyGUI
                 _textField.htmlText = UBBParser.inst.Parse(XMLUtils.EncodeString(str));
             else
                 _textField.text = str;
+        }
+        public static void SetTextTranslater(TextTranslater Translater)
+        {
+            _textTranslater = Translater;
+        }
+        public static string TranslaterStr(string Str)
+        {
+            if (_textTranslater != null)
+                return _textTranslater(Str);
+            else
+                return Str;
         }
 
         public Dictionary<string, string> templateVars
@@ -251,12 +266,12 @@ namespace FairyGUI
                     {
                         if (!underConstruct)
                         {
-                            _textField.Size = new Vector2(this.width, _textField.Size.Y);
+                            _textField.width = this.width;
                             this.height = _textField.textHeight;
                         }
                     }
                     else
-                        _textField.Size = new Vector2(this.width, this.height);
+                        _textField.SetSize(this.width, this.height);
                 }
             }
         }
@@ -271,9 +286,9 @@ namespace FairyGUI
             get { return _textField.textHeight; }
         }
 
-        public void UpdateSize(float X, float Y)
+        public virtual void UpdateSize(float X, float Y)
         {
-            if (_updatingSize)
+            if (_updatingSize || underConstruct)
                 return;
 
             _updatingSize = true;
@@ -298,17 +313,17 @@ namespace FairyGUI
                 return;
 
             if (underConstruct)
-                _textField.Size = new Vector2(this.width, this.height);
+                _textField.SetSize(this.width, this.height);
             else if (_textField.autoSize != AutoSizeType.Both)
             {
                 if (_textField.autoSize == AutoSizeType.Height)
                 {
-                    _textField.Size = new Vector2(this.width, _textField.Size.Y);//先调整宽度，让文本重排
+                    _textField.width = this.width;//先调整宽度，让文本重排
                     if (_text != string.Empty) //文本为空时，1是本来就不需要调整， 2是为了防止改掉文本为空时的默认高度，造成关联错误
-                        SetSizeDirectly(this.width, _textField.Size.Y);
+                        SetSizeDirectly(this.width, _textField.size.Y);
                 }
                 else
-                    _textField.Size = new Vector2(this.width, this.height);
+                    _textField.SetSize(this.width, this.height);
             }
         }
 

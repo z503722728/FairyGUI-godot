@@ -10,6 +10,7 @@ namespace FairyGUI
     public class GTextInput : GTextField
     {
         public InputTextField inputTextField { get; private set; }
+        NClipContainer _container;
 
         EventListener _onChanged;
         EventListener _onSubmit;
@@ -18,6 +19,10 @@ namespace FairyGUI
         {
             _textField.autoSize = AutoSizeType.None;
             _textField.wordWrap = false;
+            cursor = DisplayServer.CursorShape.Ibeam;
+            touchable = true;
+            focusable = true;
+            tabStop = true;
         }
 
         public EventListener onChanged
@@ -147,11 +152,17 @@ namespace FairyGUI
         override protected void CreateDisplayObject()
         {            
             inputTextField = new InputTextField(this);
-            displayObject = inputTextField;
+            _container = new NClipContainer(this);
+            displayObject = _container;
             _textField = inputTextField;
+            _container.AddChild(inputTextField);
         }
 
-        
+        public override void UpdateSize(float X, float Y)
+        {
+            base.UpdateSize(X, Y);
+            _container.SetSize(X, Y);
+        }
 
         public override void Setup_BeforeAdd(ByteBuffer buffer, int beginPos)
         {
@@ -161,7 +172,7 @@ namespace FairyGUI
 
             string str = buffer.ReadS();
             if (str != null)
-                inputTextField.promptText = str;
+                inputTextField.promptText = GTextField.TranslaterStr(str);
 
             str = buffer.ReadS();
             if (str != null)

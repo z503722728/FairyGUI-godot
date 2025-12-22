@@ -21,7 +21,7 @@ namespace FairyGUI
 
         override protected void CreateDisplayObject()
         {
-            richTextField = new RichTextField();
+            richTextField = new RichTextField(this);
             richTextField.gOwner = this;
             displayObject = richTextField;
             _textField = richTextField;
@@ -29,7 +29,7 @@ namespace FairyGUI
 
         override protected void SetTextFieldText()
         {
-            string str = _text;
+            string str = TranslaterStr(_text);
             if (_templateVars != null)
                 str = ParseTemplate(str);
 

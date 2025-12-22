@@ -6,8 +6,14 @@ using FairyGUI.Utils;
 
 namespace FairyGUI
 {
-    public partial class TextField : Control, IDisplayObject
+    public partial class TextField : Node2D, IDisplayObject
     {
+        protected Vector2 _position = Vector2.Zero;
+        protected Vector2 _size = Vector2.Zero;
+        protected Vector2 _pivot = Vector2.Zero;
+        protected Vector2 _scale = Vector2.One;
+        protected float _rotation = 0;
+        protected Vector2 _skew = Vector2.Zero;
         VertAlignType _verticalAlign;
         protected TextFormat _textFormat;
         protected string _text;
@@ -51,10 +57,49 @@ namespace FairyGUI
 
         public GObject gOwner { get; set; }
         public IDisplayObject parent { get { return GetParent() as IDisplayObject; } }
-        public Control node { get { return this; } }
+        public CanvasItem node { get { return this; } }
         public bool visible { get { return Visible; } set { Visible = value; } }
-        public float skewX { get; set; }
-        public float skewY { get; set; }
+        public Vector2 skew
+        {
+            get { return _skew; }
+            set
+            {
+                if (!_skew.IsEqualApprox(value))
+                {
+                    _skew = value;
+                    UpdateTransform();
+                }
+            }
+        }
+        public float skewX
+        {
+            get { return _skew.X; }
+            set
+            {
+                if (!Mathf.IsEqualApprox(_skew.X, value))
+                {
+                    _skew.X = value;
+                    UpdateTransform();
+                }
+            }
+        }
+        public float skewY
+        {
+            get { return _skew.Y; }
+            set
+            {
+                if (!Mathf.IsEqualApprox(_skew.Y, value))
+                {
+                    _skew.Y = value;
+                    UpdateTransform();
+                }
+            }
+        }
+        public Vector2 position
+        {
+            get { return Position; }
+            set { SetPosition(position); }
+        }
         public float X
         {
             get { return Position.X; }
@@ -67,54 +112,149 @@ namespace FairyGUI
         }
         public void SetXY(float x, float y)
         {
-            Position = new Vector2(x, y);
+            if (!Mathf.IsEqualApprox(_position.X, x) || !Mathf.IsEqualApprox(_position.Y, y))
+            {
+                _position.X = x;
+                _position.Y = y;
+                UpdatePosition();
+            }
         }
-        public void SetPosition(Vector2 pos)
+        public new void SetPosition(Vector2 pos)
         {
-            Position = pos;
+            if (!_position.IsEqualApprox(pos))
+            {
+                _position = pos;
+                UpdatePosition();
+            }
+        }
+        public Vector2 size
+        {
+            get { return _size; }
+            set { SetSize(value); }
         }
         public float width
         {
-            get { return Size.X; }
+            get { return _size.X; }
             set
             {
-                SetSize(value, Size.Y);
+                if (!Mathf.IsEqualApprox(value, _size.X))
+                {
+                    _size.X = value;
+                    UpdateTransform();
+                    OnSizeChanged();
+                }
             }
         }
         public float height
         {
-            get { return Size.Y; }
+            get { return _size.Y; }
             set
             {
-                SetSize(Size.X, value);
+                if (!Mathf.IsEqualApprox(value, _size.Y))
+                {
+                    _size.Y = value;
+                    UpdateTransform();
+                    OnSizeChanged();
+                }
             }
         }
         public void SetSize(float w, float h)
         {
-            if (!Mathf.IsEqualApprox(w, Size.X) || !Mathf.IsEqualApprox(h, Size.Y))
-                Size = new Vector2(w, h);
+            if (!Mathf.IsEqualApprox(w, _size.X) || !Mathf.IsEqualApprox(h, _size.Y))
+            {
+                _size.X = w;
+                _size.Y = h;
+                UpdateTransform();
+                OnSizeChanged();
+            }
         }
         public void SetSize(Vector2 size)
         {
-            if (!Size.IsEqualApprox(size))
-                Size = size;
+            SetSize(size.X, size.Y);
+        }
+        public Vector2 pivot
+        {
+            get { return _pivot; }
+            set
+            {
+                if (!_pivot.IsEqualApprox(value))
+                {
+                    _pivot = value;
+                    UpdatePosition();
+                }
+            }
+        }
+        public Vector2 scale
+        {
+            get { return _scale; }
+            set
+            {
+                if (!_scale.IsEqualApprox(value))
+                {
+                    _scale = value;
+                    UpdateTransform();
+                }
+            }
+        }
+        public float rotation
+        {
+            get { return _rotation; }
+            set
+            {
+                if (!Mathf.IsEqualApprox(_rotation, value))
+                {
+                    _rotation = value;
+                    UpdateTransform();
+                }
+            }
+        }
+        void UpdatePosition()
+        {
+            if (!_pivot.IsZeroApprox())
+                UpdateTransform();
+            else
+                Position = _position;
+        }
+        void UpdateTransform()
+        {
+            var transform = Transform2D.Identity;
+            if (!Mathf.IsZeroApprox(_rotation) || !_skew.IsZeroApprox() || !_scale.IsEqualApprox(Vector2.One))
+            {
+                transform.X.X = Mathf.Cos(_rotation + _skew.Y) * _scale.X;
+                transform.X.Y = Mathf.Sin(_rotation + _skew.Y) * _scale.X;
+                transform.Y.X = -Mathf.Sin(_rotation + _skew.X) * _scale.Y;
+                transform.Y.Y = Mathf.Cos(_rotation + _skew.X) * _scale.Y;
+            }
+            if (Mathf.IsZeroApprox(transform.Determinant()))
+            {
+                Vector2 xAxis = transform.X;
+                float equivalentRotation = Mathf.Atan2(xAxis.Y, xAxis.X);
+                float equivalentScaleX = xAxis.Length();
+                float equivalentScaleY = transform.Y.Length();
+                transform = Transform2D.Identity;
+                transform.X.X = Mathf.Cos(equivalentRotation) * equivalentScaleX;
+                transform.X.Y = Mathf.Sin(equivalentRotation) * equivalentScaleX;
+                transform.Y.X = -Mathf.Sin(equivalentRotation) * equivalentScaleY;
+                transform.Y.Y = Mathf.Cos(equivalentRotation) * equivalentScaleY;
+            }
+            if (!_pivot.IsZeroApprox())
+            {
+                Vector2 pivotOffset = _pivot * _size;
+                transform.Origin = _position + pivotOffset;
+                transform = transform * Transform2D.Identity.Translated(-pivotOffset);
+            }
+            else
+                transform.Origin = _position;
+            Transform = transform;
+            QueueRedraw();
         }
         public BlendMode blendMode { get; set; }
-        public event System.Action<double> onUpdate;
 
-        public override void _Process(double delta)
+
+        public TextField(GObject owner)
         {
-            if (onUpdate != null)
-                onUpdate(delta);
-        }
-
-        public TextField()
-        {
-            //MouseFilter = MouseFilterEnum.Ignore;
-            ClipContents = true;
-
+            gOwner = owner;
             _meshs = new TextMeshCluster();
-
             _textFormat = new TextFormat();
             _fontSizeScale = 1;
             _renderScale = Stage.contentScaleFactor;
@@ -128,8 +268,7 @@ namespace FairyGUI
             _lines = new List<LineInfo>(1);
 
             Name = "TextField";
-            _oldSize = Size;
-            Resized += OnSizeChanged;
+            _oldSize = _size;
         }
         public new virtual void Dispose()
         {
@@ -683,7 +822,7 @@ namespace FairyGUI
             LineInfo line1 = _lines[startLine];
             LineInfo line2 = _lines[endLine];
             bool leftAlign = _textFormat.align == AlignType.Left;
-            Rect rect = new Rect(Vector2.Zero, Size);
+            Rect rect = new Rect(-_pivot * _size, _size);
             if (startLine == endLine)
             {
                 Rect r = Rect.MinMaxRect(startCharX, line1.y, endCharX, line1.y + line1.height);
@@ -733,7 +872,7 @@ namespace FairyGUI
         {
             if (!_InUpdateSize)
             {
-                if (_autoSize == AutoSizeType.Shrink || _autoSize == AutoSizeType.Ellipsis || _wordWrap && !Mathf.IsEqualApprox(_oldSize.X, Size.X))
+                if (_autoSize == AutoSizeType.Shrink || _autoSize == AutoSizeType.Ellipsis || _wordWrap && !Mathf.IsEqualApprox(_oldSize.X, _size.X))
                     _textChanged = true;
                 else if (_autoSize != AutoSizeType.None)
                     QueueRedraw();
@@ -741,8 +880,8 @@ namespace FairyGUI
                 if (_verticalAlign != VertAlignType.Top)
                     ApplyVertAlign();
             }
-            _oldSize = Size;
-            (gOwner as GTextField)?.UpdateSize(Size.X, Size.Y);
+            _oldSize = _size;
+            (gOwner as GTextField)?.UpdateSize(_size.X, _size.Y);
         }
 
         public void EnsureSizeCorrect()
@@ -826,19 +965,19 @@ namespace FairyGUI
                 {
                     float w = Mathf.Max(_textFormat.size, _textWidth);
                     float h = Mathf.Max(_font.GetLineHeight(_textFormat.size) + GUTTER_Y * 2, _textHeight);
-                    SetSizeSafed(w, h);
+                    SetSize(w, h);
                 }
                 else
-                    SetSizeSafed(_textWidth, _textHeight);
+                    SetSize(_textWidth, _textHeight);
                 _InUpdateSize = false;
             }
             else if (_autoSize == AutoSizeType.Height)
             {
                 _InUpdateSize = true;
                 if (this is InputTextField)
-                    SetSizeSafed(Size.X, Mathf.Max(_font.GetLineHeight(_textFormat.size) + GUTTER_Y * 2, _textHeight));
+                    SetSize(_size.X, Mathf.Max(_font.GetLineHeight(_textFormat.size) + GUTTER_Y * 2, _textHeight));
                 else
-                    SetSizeSafed(Size.X, _textHeight);
+                    SetSize(_size.X, _textHeight);
                 _InUpdateSize = false;
             }
 
@@ -846,14 +985,6 @@ namespace FairyGUI
             ApplyVertAlign();
             _needUpdateMesh = true;
             QueueRedraw();
-        }
-
-        void SetSizeSafed(float X, float Y)
-        {
-            if (_inDrawing)
-                CallDeferred("set_size", new Vector2(X, Y));
-            else
-                Size = new Vector2(X, Y);
         }
 
         void ParseText()
@@ -933,8 +1064,8 @@ namespace FairyGUI
         {
             float letterSpacing = _textFormat.letterSpacing * _fontSizeScale;
             float lineSpacing = (_textFormat.lineSpacing - 1) * _fontSizeScale;
-            float rectWidth = Size.X - GUTTER_X * 2;
-            float rectHeight = Size.Y > 0 ? Mathf.Max(Size.Y, _font.GetLineHeight(_textFormat.size)) : 0;
+            float rectWidth = _size.X - GUTTER_X * 2;
+            float rectHeight = _size.Y > 0 ? Mathf.Max(_size.Y, _font.GetLineHeight(_textFormat.size)) : 0;
             float glyphWidth = 0, glyphHeight = 0, baseline = 0;
             short wordLen = 0;
             bool wordPossible = false;
@@ -1149,7 +1280,7 @@ namespace FairyGUI
                 _textWidth += GUTTER_X * 2;
             _textHeight = line.y + line.height + GUTTER_Y;
 
-            if (checkEdge && _textWidth <= Size.X && _textHeight <= Size.Y + GUTTER_Y)
+            if (checkEdge && _textWidth <= _size.X && _textHeight <= _size.Y + GUTTER_Y)
                 _ellipsisCharIndex = -1;
 
             if (checkEdge)
@@ -1199,14 +1330,14 @@ namespace FairyGUI
 
         void DoShrink()
         {
-            if (_lines.Count > 1 && _textHeight > Size.Y)
+            if (_lines.Count > 1 && _textHeight > _size.Y)
             {
                 //多行的情况，涉及到自动换行，得用二分法查找最合适的比例，会消耗多一点计算资源
                 int low = 0;
                 int high = _textFormat.size;
 
                 //先尝试猜测一个比例
-                _fontSizeScale = Mathf.Sqrt(Size.Y / _textHeight);
+                _fontSizeScale = Mathf.Sqrt(_size.Y / _textHeight);
                 int cur = Mathf.FloorToInt(_fontSizeScale * _textFormat.size);
 
                 while (true)
@@ -1214,7 +1345,7 @@ namespace FairyGUI
                     LineInfo.Return(_lines);
                     BuildLines2();
 
-                    if (_textWidth > Size.X || _textHeight > Size.Y)
+                    if (_textWidth > _size.X || _textHeight > _size.Y)
                         high = cur;
                     else
                         low = cur;
@@ -1227,14 +1358,14 @@ namespace FairyGUI
                         break;
                 }
             }
-            else if (_textWidth > Size.X)
+            else if (_textWidth > _size.X)
             {
-                _fontSizeScale = Size.X / _textWidth;
+                _fontSizeScale = _size.X / _textWidth;
 
                 LineInfo.Return(_lines);
                 BuildLines2();
 
-                if (_textWidth > Size.X) //如果还超出，缩小一点再来一次
+                if (_textWidth > _size.X) //如果还超出，缩小一点再来一次
                 {
                     int size = Mathf.FloorToInt(_textFormat.size * _fontSizeScale);
                     size--;
@@ -1328,7 +1459,7 @@ namespace FairyGUI
                 (this as RichTextField)?.RefreshObjects();
                 if (_typingEffectPos >= 0 && _textWidth == 0 && _lines.Count == 1)
                     _typingEffectPos = -1;
-
+                _needUpdateMesh = false;
                 return;
             }
 
@@ -1336,8 +1467,8 @@ namespace FairyGUI
             TextFormat format = _textFormat;
             _font.SetFormat(format, _fontSizeScale);
 
-            float rectWidth = Size.X > 0 ? (Size.X - GUTTER_X * 2) : 0;
-            float rectHeight = Size.Y > 0 ? Mathf.Max(Size.Y, _font.GetLineHeight(format.size)) : 0;
+            float rectWidth = _size.X > 0 ? (_size.X - GUTTER_X * 2) : 0;
+            float rectHeight = _size.Y > 0 ? Mathf.Max(_size.Y, _font.GetLineHeight(format.size)) : 0;
 
             if (_charPositions != null)
                 _charPositions.Clear();
@@ -1519,7 +1650,7 @@ namespace FairyGUI
                                 }
                                 charCount++;
 
-                                if (isEllipsis || lineClipped || clipping && (posx < GUTTER_X || posx > GUTTER_X && posx + htmlObj.width > Size.X - GUTTER_X))
+                                if (isEllipsis || lineClipped || clipping && (posx < GUTTER_X || posx > GUTTER_X && posx + htmlObj.width > _size.X - GUTTER_X))
                                     element.status |= 1;
                                 else
                                     element.status &= 254;
@@ -1569,7 +1700,7 @@ namespace FairyGUI
                             }
                             else
                             {
-                                if (lineClipped || clipping && (rectWidth < 7 || posx != (GUTTER_X + indent_x)) && posx + glyphWidth > Size.X - GUTTER_X + 0.5f) //超出区域，剪裁
+                                if (lineClipped || clipping && (rectWidth < 7 || posx != (GUTTER_X + indent_x)) && posx + glyphWidth > _size.X - GUTTER_X + 0.5f) //超出区域，剪裁
                                 {
                                     posx += letterSpacing + glyphWidth;
                                     continue;
@@ -1716,9 +1847,9 @@ namespace FairyGUI
             {
                 float dh;
                 if (_textHeight == 0 && _lines.Count > 0)
-                    dh = Size.Y - _lines[0].height;
+                    dh = _size.Y - _lines[0].height;
                 else
-                    dh = Size.Y - _textHeight;
+                    dh = _size.Y - _textHeight;
                 if (dh < 0)
                     dh = 0;
                 if (_verticalAlign == VertAlignType.Middle)

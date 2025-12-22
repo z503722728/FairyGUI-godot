@@ -482,8 +482,12 @@ namespace FairyGUI
                         {
                             if (task.Status == TaskStatus.Faulted)
                             {
-                                GD.PushError($"An error occurred in LoadExternal: {task.Exception?.InnerException?.Message}");
-                                onExternalLoadFailed();
+                                Dispatcher.SynchronizationContext.Post(_ =>
+                                {
+                                    GD.PushError($"An error occurred in LoadExternal: {task.Exception?.InnerException?.Message}");
+                                    onExternalLoadFailed();
+                                }, null);
+
                             }
                         }, TaskContinuationOptions.OnlyOnFaulted);
         }
@@ -660,7 +664,7 @@ namespace FairyGUI
                     else
                     {
                         _content.SetXY(0, 0);
-                        _content.Size = new Vector2(contentWidth, contentHeight);
+                        _content.SetSize(contentWidth, contentHeight);
                     }
 
                     return;
@@ -719,7 +723,7 @@ namespace FairyGUI
                     _content2.SetScale(sx, sy);
             }
             else
-                _content.Size = new Vector2(contentWidth, contentHeight);
+                _content.SetSize(contentWidth, contentHeight);
 
             float nx;
             float ny;

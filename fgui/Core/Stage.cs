@@ -34,8 +34,20 @@ namespace FairyGUI
         /// 一般来说，不需要设置，底层会自动根据系统环境设置正确的值。
         /// </summary>
         public static bool virtualKeyboardInput = false;
-        static bool _touchScreen = false;
 
+        GObject _focused;
+        GTextInput _lastInput;
+        List<GObject> _focusOutChain;
+        List<GObject> _focusInChain;
+        List<GComponent> _focusHistory;
+        GComponent _nextFocus;
+
+        DisplayServer.CursorShape _cursor = DisplayServer.CursorShape.Max;
+        DisplayServer.CursorShape _currentCursor = DisplayServer.CursorShape.Max;
+
+        public event System.Action<double> onUpdate;
+
+        static bool _touchScreen = false;
         public static HashSet<GObject> allObject = new HashSet<GObject>();
 
         internal static int _clickTestThreshold = 10;
@@ -182,6 +194,9 @@ namespace FairyGUI
 
             _rollOutChain = new List<GObject>();
             _rollOverChain = new List<GObject>();
+            _focusOutChain = new List<GObject>();
+            _focusInChain = new List<GObject>();
+            _focusHistory = new List<GComponent>();
 
             // 在PC上，是否retina屏对输入法位置，鼠标滚轮速度都有影响，但现在没发现Unity有获得的方式。仅判断是否Mac可能不够（外接显示器的情况）。所以最好自行设置。
             devicePixelRatio = (OS.GetName() == "macOS" && DisplayServer.ScreenGetDpi() > 96) ? 2 : 1;
@@ -243,8 +258,28 @@ namespace FairyGUI
 
         public override void _Process(double delta)
         {
+            if (_nextFocus != null)
+            {
+                if (_nextFocus.RootToLocal != null)
+                {
+                    if (_nextFocus.tabStopChildren)
+                    {
+                        if (_nextFocus._lastFocus != null && _nextFocus.IsAncestorOf(_nextFocus._lastFocus))
+                            SetFocus(_nextFocus._lastFocus);
+                        else
+                            SetFocus(_nextFocus);
+                    }
+                    else
+                        SetFocus(_nextFocus);
+                }
+                _nextFocus = null;
+            }
+
             if (beforeUpdate != null)
                 beforeUpdate();
+
+            if (onUpdate != null)
+                onUpdate(delta);
 
             _updateContext.Begin();
 
@@ -292,8 +327,7 @@ namespace FairyGUI
             }
             else if (evt is InputEventKey)
             {
-                var node = GetViewport().GuiGetFocusOwner() as IDisplayObject;
-                HandleKeyEvents(evt as InputEventKey, node?.gOwner);
+                HandleKeyEvents(evt as InputEventKey, focus);
             }
         }
 
@@ -331,6 +365,9 @@ namespace FairyGUI
             touch.x = touchPosition.X;
             touch.y = touchPosition.Y;
             touch.touchId = 0;
+
+            if (evt.Pressed && evt.ButtonIndex != MouseButton.WheelUp && evt.ButtonIndex != MouseButton.WheelDown)
+                SetFocus(touch.target);
 
             switch (evt.ButtonIndex)
             {
@@ -431,6 +468,7 @@ namespace FairyGUI
             touchPosition = evt.Position;
             if (evt.Pressed)
             {
+                SetFocus(touch.target);
                 if (!touch.began)
                 {
                     touch.Begin();
@@ -502,6 +540,18 @@ namespace FairyGUI
 
             touch.lastRollOver = touch.target;
 
+            DisplayServer.CursorShape cursor = _cursor;
+            if (cursor == DisplayServer.CursorShape.Max)
+            {
+                element = touch.target;
+                while (element != null)
+                {
+                    if (element.cursor != DisplayServer.CursorShape.Max && cursor == DisplayServer.CursorShape.Max)
+                        cursor = element.cursor;
+                    element = element.parent;
+                }
+            }
+
             element = touch.target;
             int i;
             while (element != null)
@@ -540,6 +590,8 @@ namespace FairyGUI
                 }
                 _rollOverChain.Clear();
             }
+            if (cursor != _currentCursor)
+                _ChangeCursor(cursor);
         }
         public void AddTouchMonitor(int touchId, EventDispatcher target)
         {
@@ -638,6 +690,242 @@ namespace FairyGUI
                 }
             }
             return result;
+        }
+
+        public GObject focus
+        {
+            get
+            {
+                if (_focused != null && _focused.isDisposed)
+                    _focused = null;
+                return _focused;
+            }
+            set
+            {
+                SetFocus(value);
+            }
+        }
+
+        public void SetFocus(GObject newFocus, bool byKey = false)
+        {
+            if (newFocus == GRoot.inst)
+                newFocus = null;
+
+            _nextFocus = null;
+
+            if (_focused == newFocus)
+                return;
+
+            GComponent navRoot = null;
+            GObject element = newFocus;
+            while (element != null)
+            {
+                if (!element.focusable)
+                    return;
+                else if ((element is GComponent) && ((GComponent)element).tabStopChildren)
+                {
+                    if (navRoot == null)
+                        navRoot = element as GComponent;
+                }
+
+                element = element.parent;
+            }
+
+            GObject oldFocus = _focused;
+            _focused = newFocus;
+
+            if (navRoot != null)
+            {
+                navRoot._lastFocus = _focused;
+                int pos = _focusHistory.IndexOf(navRoot);
+                if (pos != -1)
+                {
+                    if (pos < _focusHistory.Count - 1)
+                        _focusHistory.RemoveRange(pos + 1, _focusHistory.Count - pos - 1);
+                }
+                else
+                {
+                    _focusHistory.Add(navRoot);
+                    if (_focusHistory.Count > 10)
+                        _focusHistory.RemoveAt(0);
+                }
+            }
+
+            _focusInChain.Clear();
+            _focusOutChain.Clear();
+
+            element = oldFocus;
+            while (element != null)
+            {
+                if (element.focusable)
+                    _focusOutChain.Add(element);
+                element = element.parent;
+            }
+
+            element = _focused;
+            int i;
+            while (element != null)
+            {
+                i = _focusOutChain.IndexOf(element);
+                if (i != -1)
+                {
+                    _focusOutChain.RemoveRange(i, _focusOutChain.Count - i);
+                    break;
+                }
+                if (element.focusable)
+                    _focusInChain.Add(element);
+
+                element = element.parent;
+            }
+
+            int cnt = _focusOutChain.Count;
+            if (cnt > 0)
+            {
+                for (i = 0; i < cnt; i++)
+                {
+                    element = _focusOutChain[i];
+                    if (element.realRoot != null)
+                    {
+                        element.DispatchEvent("onFocusOut", null);
+                        if (_focused != newFocus) //focus changed in event
+                            return;
+                    }
+                }
+                _focusOutChain.Clear();
+            }
+
+            cnt = _focusInChain.Count;
+            if (cnt > 0)
+            {
+                for (i = 0; i < cnt; i++)
+                {
+                    element = _focusInChain[i];
+                    if (element.realRoot != null)
+                    {
+                        element.DispatchEvent("onFocusIn", byKey ? "key" : null);
+                        if (_focused != newFocus) //focus changed in event
+                            return;
+                    }
+                }
+                _focusInChain.Clear();
+            }
+
+            if (_focused is GTextInput)
+                _lastInput = (GTextInput)_focused;
+        }
+
+        internal void _OnFocusRemoving(GComponent sender)
+        {
+            _nextFocus = sender;
+            if (_focusHistory.Count > 0)
+            {
+                int i = _focusHistory.Count - 1;
+                GObject test = _focusHistory[i];
+                GObject element = _focused;
+                while (element != null && element != sender)
+                {
+                    if ((element is GComponent) && ((GComponent)element).tabStopChildren && element == test)
+                    {
+                        i--;
+                        if (i < 0)
+                            break;
+
+                        test = _focusHistory[i];
+                    }
+
+                    element = element.parent;
+                }
+
+                if (i != _focusHistory.Count - 1)
+                {
+                    _focusHistory.RemoveRange(i + 1, _focusHistory.Count - i - 1);
+                    if (_focusHistory.Count > 0)
+                        _nextFocus = _focusHistory[_focusHistory.Count - 1];
+                }
+            }
+
+            if (_focused is GTextInput)
+                _lastInput = null;
+            _focused = null;
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="backward"></param>
+        public void DoKeyNavigate(bool backward)
+        {
+            GComponent navBase = null;
+            GObject element = _focused;
+            while (element != null)
+            {
+                if ((element is GComponent) && ((GComponent)element).tabStopChildren)
+                {
+                    navBase = element as GComponent;
+                    break;
+                }
+
+                element = element.parent;
+            }
+
+            if (navBase == null)
+                navBase = GRoot.inst;
+
+            var it = navBase.GetDescendants(backward);
+            bool started = _focused == null;
+            GObject test2 = _focused != null ? _focused.parent : null;
+
+            while (it.MoveNext())
+            {
+                GObject dobj = it.Current;
+                if (started)
+                {
+                    if (dobj == test2)
+                        test2 = test2.parent;
+                    else if (dobj._AcceptTab())
+                        return;
+                }
+                else if (dobj == _focused)
+                    started = true;
+            }
+
+            if (started)
+            {
+                it.Reset();
+                while (it.MoveNext())
+                {
+                    GObject dobj = it.Current;
+                    if (dobj == _focused)
+                        break;
+
+                    if (dobj == test2)
+                        test2 = test2.parent;
+                    else if (dobj._AcceptTab())
+                        return;
+                }
+            }
+        }
+
+        public DisplayServer.CursorShape cursor
+        {
+            get { return _cursor; }
+            set { _cursor = value; }
+        }
+        public DisplayServer.CursorShape activeCursor
+        {
+            get { return _currentCursor; }
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="cursorName"></param>
+        internal void _ChangeCursor(DisplayServer.CursorShape csr)
+        {
+            if (csr != DisplayServer.CursorShape.Max)
+                DisplayServer.CursorSetShape(csr);
+            else
+                DisplayServer.CursorSetShape(DisplayServer.CursorShape.Arrow);
         }
     }
 

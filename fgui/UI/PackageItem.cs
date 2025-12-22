@@ -4,7 +4,7 @@ using System.Collections.Generic;
 
 namespace FairyGUI
 {
-    public partial class PackageItem
+    public class PackageItem
     {
         public UIPackage owner;
 

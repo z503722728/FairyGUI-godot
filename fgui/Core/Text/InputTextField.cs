@@ -102,12 +102,10 @@ namespace FairyGUI
         const int GUTTER_Y = 2;
 
         public InputTextField(GObject owner)
+            : base(owner)
         {
             Name = "InputTextField";
 
-            gOwner = owner;
-
-            MouseFilter = MouseFilterEnum.Stop;
             _inputText = string.Empty;
             maxLength = 0;
             _editable = true;
@@ -116,10 +114,7 @@ namespace FairyGUI
             _borderColor = Colors.Black;
             _backgroundColor = Color.Color8(0, 0, 0, 0);
             mouseWheelEnabled = true;
-            FocusMode = FocusModeEnum.All;
-            MouseDefaultCursorShape = CursorShape.Ibeam;
             _charPositions = new List<CharPosition>();
-
 
             owner.onFocusIn.Add(__focusIn);
             owner.onFocusOut.Add(__focusOut);
@@ -129,6 +124,14 @@ namespace FairyGUI
             owner.onMouseWheel.Add(__mouseWheel);
             owner.onClick.Add(__click);
             owner.onRightClick.Add(__rightClick);
+
+            Stage.inst.onUpdate += OnUpdate;
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            base.Dispose(disposing);
+            Stage.inst.onUpdate -= OnUpdate;
         }
 
         public override string text
@@ -156,7 +159,7 @@ namespace FairyGUI
                 base.textFormat = value;
                 if (_editing)
                 {
-                    _caret.Size = new Vector2(_caret.Size.X, _textFormat.size);
+                    _caret.Y = _textFormat.size;
                     _caret.DrawRect(0, Colors.Transparent, _textFormat.color);
                 }
             }
@@ -313,7 +316,7 @@ namespace FairyGUI
                 _borderShape = new NShape(gOwner);
                 AddChild(_borderShape);
                 _borderShape.SetXY(0, 0);
-                _borderShape.Size = Size;
+                _borderShape.size = _size;
                 _borderShape.DrawRect(_border, _borderColor, _backgroundColor);
             }
             else
@@ -335,7 +338,7 @@ namespace FairyGUI
         public void SetSelection(int start, int length)
         {
             if (!_editing)
-                GrabFocus();
+                gOwner.RequestFocus();
 
             _selectionStart = start;
             _caretPosition = length < 0 ? int.MaxValue : (start + length);
@@ -363,7 +366,7 @@ namespace FairyGUI
             }
 
             if (!_editing)
-                GrabFocus();
+                gOwner.RequestFocus();
 
             Redraw();
 
@@ -635,19 +638,19 @@ namespace FairyGUI
             Vector2 offset = pos + _textDrawOffset;
 
             if (offset.X < textFormat.size)
-                offset.X += Mathf.Min(50, Size.X * 0.5f);
-            else if (offset.X > Size.X - GUTTER_X - textFormat.size)
-                offset.X -= Mathf.Min(50, Size.X * 0.5f);
+                offset.X += Mathf.Min(50, _size.X * 0.5f);
+            else if (offset.X > _size.X - GUTTER_X - textFormat.size)
+                offset.X -= Mathf.Min(50, _size.X * 0.5f);
 
             if (offset.X < GUTTER_X)
                 offset.X = GUTTER_X;
-            else if (offset.X > Size.X - GUTTER_X)
-                offset.X = Mathf.Max(GUTTER_X, Size.X - GUTTER_X);
+            else if (offset.X > _size.X - GUTTER_X)
+                offset.X = Mathf.Max(GUTTER_X, _size.X - GUTTER_X);
 
             if (offset.Y < GUTTER_Y)
                 offset.Y = GUTTER_Y;
-            else if (offset.Y + line.height >= Size.Y - GUTTER_Y)
-                offset.Y = Mathf.Max(GUTTER_Y, Size.Y - line.height - GUTTER_Y);
+            else if (offset.Y + line.height >= _size.Y - GUTTER_Y)
+                offset.Y = Mathf.Max(GUTTER_Y, _size.Y - line.height - GUTTER_Y);
 
             MoveContent(offset - pos, forceUpdate);
 
@@ -784,7 +787,7 @@ namespace FairyGUI
         //     ((RectHitTest)this.hitArea).rect = _contentRect;
         // }
 
-        public override void _Process(double delta)
+        void OnUpdate(double delta)
         {
             if (_editing)
             {
@@ -836,7 +839,6 @@ namespace FairyGUI
             _caret = new NShape(gOwner);
             AddChild(_caret);
             _caret.Name = "Caret";
-            _caret.MouseFilter = MouseFilterEnum.Ignore;
             _caret.SetPosition(_textDrawOffset);
         }
 
@@ -890,7 +892,7 @@ namespace FairyGUI
             }
         }
 
-        void __focusIn()
+        void __focusIn(EventContext context)
         {
             _editing = true;
             _textBeforeEdit = _inputText;
@@ -933,8 +935,8 @@ namespace FairyGUI
                 DisplayServer.WindowSetImeActive(!disableIME && !_displayAsPassword);
                 _composing = 0;
 
-                // if ((string)context.data == "key") //select all if got focus by tab key
-                //     SetSelection(0, -1);
+                if ((string)context.data == "key") //select all if got focus by tab key
+                    SetSelection(0, -1);
 
                 TextInputHistory.inst.StartRecord(this);
             }
@@ -1198,27 +1200,27 @@ namespace FairyGUI
                     {
                         if (singleLine)
                         {
-                            parent.node.GrabFocus();
+                            Stage.inst.focus = gOwner.parent;
                             gOwner.DispatchEvent("onSubmit", null);
                             gOwner.DispatchEvent("onKeyDown", null); //for backward compatibility
                         }
                         break;
                     }
 
-                // case Key.Tab:
-                //     {
-                //         if (singleLine)
-                //         {
-                //             Stage.inst.DoKeyNavigate(evt.shift);
-                //             keyCodeHandled = false;
-                //         }
-                //         break;
-                //     }
+                case Key.Tab:
+                    {
+                        if (singleLine)
+                        {
+                            Stage.inst.DoKeyNavigate(evt.shift);
+                            keyCodeHandled = false;
+                        }
+                        break;
+                    }
 
                 case Key.Escape:
                     {
                         this.text = _textBeforeEdit;
-                        parent.node.GrabFocus();
+                        Stage.inst.focus = gOwner.parent;
                         break;
                     }
 

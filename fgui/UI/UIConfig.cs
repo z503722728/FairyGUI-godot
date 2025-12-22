@@ -171,7 +171,6 @@ namespace FairyGUI
 
         //UI所在的绘制层，越大越靠前
         public static int canvasLayer = 100;
-
         //字形缓冲纹理大小
         static int _glyphCacheTexSize = 1024;
 

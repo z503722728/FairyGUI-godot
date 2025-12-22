@@ -100,7 +100,6 @@ namespace FairyGUI
         /// 
         /// </summary>
         public PackageItem packageItem;
-
         string _name;
         float _x;
         float _y;
@@ -121,6 +120,8 @@ namespace FairyGUI
         string _tooltips;
         bool _focusable = true;
         bool _tabStop = false;
+
+        DisplayServer.CursorShape _cursor = DisplayServer.CursorShape.Max;
         GGroup _group;
 
         GearBase[] _gears;
@@ -173,6 +174,11 @@ namespace FairyGUI
             relations = new Relations(this);
             _gears = new GearBase[10];
             Stage.allObject.Add(this);
+        }
+
+        ~GObject()
+        {
+            Dispose();
         }
 
         public EventListener onClick
@@ -587,14 +593,14 @@ namespace FairyGUI
             get
             {
                 if (displayObject != null)
-                    return displayObject.skewX;
+                    return Mathf.RadToDeg(displayObject.skewX);
                 else
                     return 0;
             }
             set
             {
                 if (displayObject != null)
-                    displayObject.skewX = value;
+                    displayObject.skewX = Mathf.DegToRad(value);
             }
         }
         public float skewY
@@ -602,14 +608,14 @@ namespace FairyGUI
             get
             {
                 if (displayObject != null)
-                    return displayObject.skewY;
+                    return Mathf.RadToDeg(displayObject.skewY);
                 else
                     return 0;
             }
             set
             {
                 if (displayObject != null)
-                    displayObject.skewY = value;
+                    displayObject.skewY = Mathf.DegToRad(value);
             }
         }
         public Vector2 skew
@@ -617,7 +623,7 @@ namespace FairyGUI
             get
             {
                 if (displayObject != null)
-                    return new Vector2(displayObject.skewX, displayObject.skewY);
+                    return new Vector2(Mathf.RadToDeg(displayObject.skewX), Mathf.RadToDeg(displayObject.skewY));
                 else
                     return Vector2.Zero;
             }
@@ -625,8 +631,8 @@ namespace FairyGUI
             {
                 if (displayObject != null)
                 {
-                    displayObject.skewX = value.X;
-                    displayObject.skewY = value.Y;
+                    displayObject.skewX = Mathf.DegToRad(value.X);
+                    displayObject.skewY = Mathf.DegToRad(value.Y);
                 }
             }
         }
@@ -704,7 +710,9 @@ namespace FairyGUI
         void UpdatePivot()
         {
             if (displayObject != null)
-                displayObject.node.PivotOffset = new Vector2(_pivotX * _width, _pivotY * _height);
+            {
+                displayObject.pivot = new Vector2(_pivotX, _pivotY);
+            }
         }
 
         /// <summary>
@@ -722,7 +730,6 @@ namespace FairyGUI
                 {
                     _touchable = value;
                     UpdateGear(3);
-                    UpdateFocusMode();
                 }
             }
         }
@@ -778,7 +785,7 @@ namespace FairyGUI
                 {
                     _rotation = value;
                     if (displayObject != null)
-                        displayObject.node.Rotation = Mathf.DegToRad(_rotation);
+                        displayObject.rotation = Mathf.DegToRad(_rotation);
                     UpdateGear(3);
                 }
             }
@@ -839,7 +846,7 @@ namespace FairyGUI
         {
             get
             {
-                return _visible && (group == null || group.internalVisible2);
+                return _visible && _internalVisible && (group == null || group.internalVisible2);
             }
         }
 
@@ -881,7 +888,6 @@ namespace FairyGUI
             set
             {
                 _focusable = value;
-                UpdateFocusMode();
             }
         }
 
@@ -894,16 +900,20 @@ namespace FairyGUI
             set
             {
                 _tabStop = value;
-                UpdateFocusMode();
             }
         }
 
-        void UpdateFocusMode()
+        internal bool _AcceptTab()
         {
-            if (displayObject != null)
+            if (_touchable && _visible
+                && (_tabStop || (this is GComponent com && com.tabStopChildren))
+                && _focusable)
             {
-                displayObject.node.FocusMode = (_focusable && _touchable) ? (_tabStop ? Control.FocusModeEnum.All : Control.FocusModeEnum.Click) : Control.FocusModeEnum.None;
+                Stage.inst.SetFocus(this, true);
+                return true;
             }
+            else
+                return false;
         }
 
         /// <summary>
@@ -911,7 +921,7 @@ namespace FairyGUI
         /// </summary>
         public bool focused
         {
-            get { return displayObject != null && displayObject.node.HasFocus(); }
+            get { return displayObject != null && (Stage.inst.focus == this || (this is GComponent com && com.IsAncestorOf(Stage.inst.focus))); }
         }
 
         /// <summary>
@@ -920,9 +930,14 @@ namespace FairyGUI
         public void RequestFocus()
         {
             if (displayObject != null)
-                displayObject.node.GrabFocus();
+                Stage.inst.SetFocus(this);
         }
 
+        public void RequestFocus(bool byKey)
+        {
+            if (displayObject != null)
+                Stage.inst.SetFocus(this, byKey);
+        }
 
         /// <summary>
         /// Tooltips of this object. UIConfig.tooltipsWin must be set first.
@@ -952,16 +967,11 @@ namespace FairyGUI
         /// 
         /// </summary>
         /// <value></value>
-        public Control.CursorShape cursor
+        public DisplayServer.CursorShape cursor
         {
-            get { return displayObject != null ? displayObject.node.GetCursorShape() : Control.CursorShape.Arrow; }
-            set
-            {
-                if (displayObject != null)
-                    displayObject.node.MouseDefaultCursorShape = value;
-            }
+            get { return _cursor; }
+            set { _cursor = value; }
         }
-
 
 
         private void __rollOver()
@@ -1158,8 +1168,7 @@ namespace FairyGUI
             if (connected != _internalVisible)
             {
                 _internalVisible = connected;
-                if (parent != null)
-                    parent.ChildStateChanged(this);
+                HandleVisibleChanged();
                 if (_group != null && _group.excludeInvisibles)
                     _group.SetBoundsChangedFlag();
             }
@@ -1666,11 +1675,7 @@ namespace FairyGUI
         }
         virtual protected void OnDisplayObjectCreated()
         {
-            if (displayObject != null)
-            {
-                displayObject.node.FocusEntered += () => { DispatchEvent("onFocusIn"); };
-                displayObject.node.FocusExited += () => { DispatchEvent("onFocusOut"); };
-            }
+
         }
 
         internal void InternalSetParent(GComponent value)
@@ -1696,13 +1701,15 @@ namespace FairyGUI
         virtual protected void HandleSizeChanged(bool fromNode)
         {
             if (displayObject != null && !fromNode)
-                displayObject.node.Size = new Vector2(_width, _height);
+            {
+                displayObject.size = new Vector2(_width, _height);
+            }
         }
 
         virtual protected void HandleScaleChanged()
         {
             if (displayObject != null)
-                displayObject.node.Scale = new Vector2(_scaleX, _scaleY);
+                displayObject.scale = new Vector2(_scaleX, _scaleY);
         }
 
         virtual protected void HandleGrayedChanged()
@@ -1737,19 +1744,34 @@ namespace FairyGUI
         {
         }
 
-        protected NContainer AddParentContainer(IDisplayObject displayObject)
+        protected NContainer AddParentContainer(IDisplayObject obj)
         {
             var parent = new NContainer(this);
-            parent.Size = displayObject.node.Size;
-            parent.Scale = displayObject.node.Scale;
-            parent.Rotation = displayObject.node.Rotation;
-            parent.Position = displayObject.node.Position;
-            displayObject.node.Scale = Vector2.One;
-            displayObject.node.Rotation = 0;
-            displayObject.SetXY(0, 0);
-            if (displayObject.node.GetParent() != null)
-                displayObject.node.AddSibling(parent);
-            parent.AddChild(displayObject.node);
+            parent.size = obj.size;
+            parent.Scale = obj.scale;
+            parent.Rotation = obj.rotation;
+            parent.Position = obj.position;
+            obj.scale = Vector2.One;
+            obj.rotation = 0;
+            obj.SetXY(0, 0);
+            if (obj.node.GetParent() != null)
+                obj.node.AddSibling(parent);
+            parent.AddChild(obj.node);
+            return parent;
+        }
+        protected NClipContainer AddParentClipContainer(IDisplayObject obj)
+        {
+            var parent = new NClipContainer(this);
+            parent.size = obj.size;
+            parent.Scale = obj.scale;
+            parent.Rotation = obj.rotation;
+            parent.Position = obj.position;
+            obj.scale = Vector2.One;
+            obj.rotation = 0;
+            obj.SetXY(0, 0);
+            if (obj.node.GetParent() != null)
+                obj.node.AddSibling(parent);
+            parent.AddChild(obj.node);
             return parent;
         }
 
@@ -1844,7 +1866,6 @@ namespace FairyGUI
                 buffer.ReadFloat();
             }
 
-            UpdateFocusMode();
 
             string str = buffer.ReadS();
             if (str != null)

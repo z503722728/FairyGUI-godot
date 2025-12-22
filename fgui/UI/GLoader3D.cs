@@ -6,7 +6,7 @@ namespace FairyGUI
     /// <summary>
     /// 
     /// </summary>
-    public partial class GLoader3D : GObject, IAnimationGear, IColorGear
+    public class GLoader3D : GObject, IAnimationGear, IColorGear
     {
         string _url;
         AlignType _align;
@@ -37,7 +37,7 @@ namespace FairyGUI
         override protected void CreateDisplayObject()
         {
             _content = new NContainer3D(this);
-            _content.onUpdate += OnUpdateContent;
+            Stage.inst.onUpdate += OnUpdateContent;
             displayObject = _content;
         }
 

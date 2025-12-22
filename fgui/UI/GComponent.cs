@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using Godot;
 using FairyGUI.Utils;
@@ -25,7 +26,7 @@ namespace FairyGUI
         /// Content container. If the component is not clipped, then container==rootContainer.
         /// </summary>
         public NContainer container { get; protected set; }
-        NContainer _clipContainer;
+        NClipContainer _clipContainer;
         /// <summary>
         /// ScrollPane of the component. If the component is not scrollable, the value is null.
         /// </summary>
@@ -50,9 +51,10 @@ namespace FairyGUI
 
         EventListener _onDrop;
         bool _tabStopChildren = false;
-        bool _opaque = false;
-        GObject _mask;
-        bool _reversedMask = false;
+        protected bool _opaque = false;
+        protected GObject _mask;
+        protected bool _reversedMask = false;
+        internal GObject _lastFocus;
 
         public GComponent()
         {
@@ -67,13 +69,17 @@ namespace FairyGUI
         override protected void CreateDisplayObject()
         {
             container = new NContainer(this);
-            container.onUpdate += OnUpdate;
+            Stage.inst.onUpdate += OnUpdate;
 
             displayObject = container;
         }
 
         override public void Dispose()
         {
+            if (_disposed)
+                return;
+            Stage.inst.onUpdate -= OnUpdate;
+            
             int cnt = _transitions.Count;
             for (int i = 0; i < cnt; ++i)
             {
@@ -109,9 +115,10 @@ namespace FairyGUI
             _internalChildren.Clear();
             if (container != null && container != displayObject)
                 container.QueueFree();
+            container = null;
             if (_clipContainer != null)
                 _clipContainer.QueueFree();
-
+            _clipContainer = null;     
             base.Dispose(); //Dispose native tree first, avoid DisplayObject.RemoveFromParent call
         }
 
@@ -144,15 +151,19 @@ namespace FairyGUI
             get { return GetChildIndex(_mask); }
             set
             {
+                if (_clipContainer == null)
+                {
+                    SetupOverflow(OverflowType.Hidden);
+                }
                 _mask = GetChildAt(value);
                 if (_mask != null)
                 {
-                    container.mask = _mask.displayObject.node;
-                    container.reversedMask = _reversedMask;
+                    _clipContainer.mask = _mask.displayObject.node;
+                    _clipContainer.reversedMask = _reversedMask;
                 }
                 else
                 {
-                    container.mask = null;
+                    _clipContainer.mask = null;
                 }
             }
         }
@@ -162,8 +173,12 @@ namespace FairyGUI
             get { return _reversedMask; }
             set
             {
+                if (_clipContainer == null)
+                {
+                    SetupOverflow(OverflowType.Hidden);
+                }
                 _reversedMask = value;
-                container.reversedMask = _reversedMask;
+                _clipContainer.reversedMask = _reversedMask;
             }
         }
 
@@ -219,6 +234,20 @@ namespace FairyGUI
         {
             get { return _tabStopChildren; }
             set { _tabStopChildren = value; }
+        }
+
+        public bool redraw
+        {
+            get { return !_buildingDisplayList; }
+            set
+            {
+                if(_buildingDisplayList!=(!value))
+                {
+                    _buildingDisplayList = !value;
+                    if (!_buildingDisplayList)
+                        BuildNativeDisplayList();
+                }
+            }
         }
 
         /// <summary>
@@ -399,11 +428,21 @@ namespace FairyGUI
                         UpdateContext.OnBegin += _buildDelegate;
                     }
                 }
-
-                if (child is GComponent)
-                    child.BroadcastEvent("onRemovedFromStage", null);
-                else
-                    child.DispatchEvent("onRemovedFromStage", null);
+                if (!_disposed)
+                {
+                    if (child is GComponent com)
+                    {
+                        child.BroadcastEvent("onRemovedFromStage", null);
+                        if (child == Stage.inst.focus || com.IsAncestorOf(Stage.inst.focus))
+                            Stage.inst._OnFocusRemoving(this);
+                    }
+                    else
+                    {
+                        child.DispatchEvent("onRemovedFromStage", null);
+                        if (child == Stage.inst.focus)
+                            Stage.inst._OnFocusRemoving(this);
+                    }
+                }
 
                 if (dispose)
                     child.Dispose();
@@ -428,10 +467,21 @@ namespace FairyGUI
                     container.RemoveChild(child.displayObject.node);
                 else
                     displayObject.node.RemoveChild(child.displayObject.node);
-                if (child is GComponent)
-                    child.BroadcastEvent("onRemovedFromStage", null);
-                else
-                    child.DispatchEvent("onRemovedFromStage", null);
+                if (!_disposed)
+                {
+                    if (child is GComponent com)
+                    {
+                        child.BroadcastEvent("onRemovedFromStage", null);
+                        if (child == Stage.inst.focus || com.IsAncestorOf(Stage.inst.focus))
+                            Stage.inst._OnFocusRemoving(this);
+                    }
+                    else
+                    {
+                        child.DispatchEvent("onRemovedFromStage", null);
+                        if (child == Stage.inst.focus)
+                            Stage.inst._OnFocusRemoving(this);
+                    }
+                }
                 if (dispose)
                     child.Dispose();
                 return child;
@@ -541,7 +591,7 @@ namespace FairyGUI
             for (int i = 0; i < cnt; ++i)
             {
                 GObject child = _children[i];
-                if (child.internalVisible && child.internalVisible2 && child.name == name)
+                if (child.internalVisible2 && child.name == name)
                     return child;
             }
 
@@ -909,61 +959,47 @@ namespace FairyGUI
             if (child.displayObject == null)
                 return;
 
-            if (child.internalVisible)
+            if (child.displayObject.node.GetParent() == null)
             {
-                if (child.displayObject.node.GetParent() == null)
+                if (_childrenRenderOrder == ChildrenRenderOrder.Ascent)
                 {
-                    if (_childrenRenderOrder == ChildrenRenderOrder.Ascent)
+                    int index = 0;
+                    for (int i = 0; i < cnt; i++)
                     {
-                        int index = 0;
-                        for (int i = 0; i < cnt; i++)
-                        {
-                            GObject g = _children[i];
-                            if (g == child)
-                                break;
+                        GObject g = _children[i];
+                        if (g == child)
+                            break;
 
-                            if (g.displayObject != null && g.displayObject.node.GetParent() != null)
-                                index++;
-                        }
-                        container.AddChild(child.displayObject.node);
-                        container.MoveChild(child.displayObject.node, index);
+                        if (g.displayObject != null && g.displayObject.node.GetParent() != null)
+                            index++;
                     }
-                    else if (_childrenRenderOrder == ChildrenRenderOrder.Descent)
+                    container.AddChild(child.displayObject.node);
+                    container.MoveChild(child.displayObject.node, index);
+                }
+                else if (_childrenRenderOrder == ChildrenRenderOrder.Descent)
+                {
+                    int index = 0;
+                    for (int i = cnt - 1; i >= 0; i--)
                     {
-                        int index = 0;
-                        for (int i = cnt - 1; i >= 0; i--)
-                        {
-                            GObject g = _children[i];
-                            if (g == child)
-                                break;
+                        GObject g = _children[i];
+                        if (g == child)
+                            break;
 
-                            if (g.displayObject != null && g.displayObject.node.GetParent() != null)
-                                index++;
-                        }
-                        container.AddChild(child.displayObject.node);
-                        container.MoveChild(child.displayObject.node, index);
+                        if (g.displayObject != null && g.displayObject.node.GetParent() != null)
+                            index++;
                     }
-                    else
-                    {
-                        container.AddChild(child.displayObject.node);
+                    container.AddChild(child.displayObject.node);
+                    container.MoveChild(child.displayObject.node, index);
+                }
+                else
+                {
+                    container.AddChild(child.displayObject.node);
 
-                        UpdateContext.OnBegin -= _buildDelegate;
-                        UpdateContext.OnBegin += _buildDelegate;
-                    }
+                    UpdateContext.OnBegin -= _buildDelegate;
+                    UpdateContext.OnBegin += _buildDelegate;
                 }
             }
-            else
-            {
-                if (child.displayObject.node.GetParent() != null)
-                {
-                    container.RemoveChild(child.displayObject.node);
-                    if (_childrenRenderOrder == ChildrenRenderOrder.Arch)
-                    {
-                        UpdateContext.OnBegin -= _buildDelegate;
-                        UpdateContext.OnBegin += _buildDelegate;
-                    }
-                }
-            }
+
         }
 
         void BuildNativeDisplayList()
@@ -988,7 +1024,7 @@ namespace FairyGUI
                         for (int i = 0; i < cnt; i++)
                         {
                             GObject child = _children[i];
-                            if (child.displayObject != null && child.internalVisible)
+                            if (child.displayObject != null)
                                 container.AddChild(child.displayObject.node);
                         }
                     }
@@ -998,7 +1034,7 @@ namespace FairyGUI
                         for (int i = cnt - 1; i >= 0; i--)
                         {
                             GObject child = _children[i];
-                            if (child.displayObject != null && child.internalVisible)
+                            if (child.displayObject != null)
                                 container.AddChild(child.displayObject.node);
                         }
                     }
@@ -1010,13 +1046,13 @@ namespace FairyGUI
                         for (int i = 0; i < apex; i++)
                         {
                             GObject child = _children[i];
-                            if (child.displayObject != null && child.internalVisible)
+                            if (child.displayObject != null)
                                 container.AddChild(child.displayObject.node);
                         }
                         for (int i = cnt - 1; i >= apex; i--)
                         {
                             GObject child = _children[i];
-                            if (child.displayObject != null && child.internalVisible)
+                            if (child.displayObject != null)
                                 container.AddChild(child.displayObject.node);
                         }
                     }
@@ -1101,7 +1137,7 @@ namespace FairyGUI
             {
                 return scrollPane.IsChildInView(child);
             }
-            else if (container.ClipContents)
+            else if (_clipContainer != null)
             {
                 return child.x + child.width >= 0 && child.x <= this.width
                     && child.y + child.height >= 0 && child.y <= this.height;
@@ -1126,9 +1162,8 @@ namespace FairyGUI
         {
             if (_clipContainer == null)
             {
-                _clipContainer = AddParentContainer(container);
+                _clipContainer = AddParentClipContainer(container);
                 displayObject = AddParentContainer(_clipContainer);
-                _clipContainer.ClipContents = true;
             }
 
             scrollPane = new ScrollPane(this, _clipContainer);
@@ -1141,12 +1176,14 @@ namespace FairyGUI
             {
                 if (displayObject == container)
                 {
-                    displayObject = AddParentContainer(container);
-                    displayObject.node.ClipContents = true;
+                    _clipContainer = AddParentClipContainer(container);
+                    displayObject = AddParentContainer(_clipContainer);
                 }
-
-                UpdateClipRect();
-                container.SetXY(_margin.left, _margin.top);
+                else
+                {
+                    _clipContainer = AddParentClipContainer(container);
+                    displayObject.node.AddChild(_clipContainer);
+                }
             }
             else if (_margin.left != 0 || _margin.top != 0)
             {
@@ -1154,11 +1191,9 @@ namespace FairyGUI
                 {
                     displayObject = AddParentContainer(container);
                 }
-                container.SetXY(_margin.left, _margin.top);
             }
+            UpdateClipRect();
         }
-
-
 
         void UpdateClipRect()
         {
@@ -1167,7 +1202,14 @@ namespace FairyGUI
                 float w = this.width - (_margin.left + _margin.right);
                 float h = this.height - (_margin.top + _margin.bottom);
                 _clipContainer.SetXY(_margin.left, _margin.top);
-                _clipContainer.Size = new Vector2(w, h);
+                _clipContainer.size = new Vector2(w, h);
+            }
+            else if (displayObject != container)
+            {
+                float w = this.width - (_margin.left + _margin.right);
+                float h = this.height - (_margin.top + _margin.bottom);
+                container.SetXY(_margin.left, _margin.top);
+                container.size = new Vector2(w, h);
             }
         }
 
@@ -1177,8 +1219,7 @@ namespace FairyGUI
 
             if (scrollPane != null)
                 scrollPane.OnOwnerSizeChanged();
-            if (displayObject.node.ClipContents)
-                UpdateClipRect();
+            UpdateClipRect();
         }
 
         override protected void HandleGrayedChanged()
@@ -1419,7 +1460,7 @@ namespace FairyGUI
 
         public override GObject HitTest(Vector2 viewPoint, bool forceTest = false)
         {
-            if (!forceTest && (!touchable || !visible || !internalVisible))
+            if (!forceTest && (!touchable || !internalVisible2))
                 return null;
             Vector2 localPoint = ViewportToLocal(viewPoint);
             bool OutContent = localPoint.X < 0 || localPoint.Y < 0 || localPoint.X > _width || localPoint.Y > _height;
@@ -1792,6 +1833,115 @@ namespace FairyGUI
             int cnt = _transitions.Count;
             for (int i = 0; i < cnt; ++i)
                 _transitions[i].OnOwnerRemovedFromStage();
+        }
+
+        public IEnumerator<GObject> GetDescendants(bool backward)
+        {
+            return new DescendantsEnumerator(this, backward);
+        }
+
+        struct DescendantsEnumerator : IEnumerator<GObject>
+        {
+            GComponent _root;
+            GComponent _com;
+            GObject _current;
+            int _index;
+            bool _forward;
+
+            public DescendantsEnumerator(GComponent root, bool backward)
+            {
+                _root = root;
+                _com = _root;
+                _current = null;
+                _forward = !backward;
+                if (_forward)
+                    _index = 0;
+                else
+                    _index = _com._children.Count - 1;
+            }
+
+            public GObject Current
+            {
+                get { return _current; }
+            }
+
+            object IEnumerator.Current
+            {
+                get { return _current; }
+            }
+
+            public bool MoveNext()
+            {
+                if (_forward)
+                {
+                    if (_index >= _com._children.Count)
+                    {
+                        if (_com == _root)
+                        {
+                            _current = null;
+                            return false;
+                        }
+
+                        _current = _com;
+                        _com = _com.parent;
+                        _index = _com.GetChildIndex(_current) + 1;
+                        return true;
+                    }
+                    else
+                    {
+                        GObject obj = _com._children[_index];
+                        if (obj is GComponent)
+                        {
+                            _com = (GComponent)obj;
+                            _index = 0;
+                            return MoveNext();
+                        }
+                        _index++;
+                        _current = obj;
+                        return true;
+                    }
+                }
+                else
+                {
+                    if (_index < 0)
+                    {
+                        if (_com == _root)
+                        {
+                            _current = null;
+                            return false;
+                        }
+
+                        _current = _com;
+                        _com = _com.parent;
+                        _index = _com.GetChildIndex(_current) - 1;
+                        return true;
+                    }
+                    else
+                    {
+                        GObject obj = _com._children[_index];
+                        if (obj is GComponent)
+                        {
+                            _com = (GComponent)obj;
+                            _index = _com._children.Count - 1;
+                            return MoveNext();
+                        }
+                        _index--;
+                        _current = obj;
+                        return true;
+                    }
+                }
+            }
+
+            public void Reset()
+            {
+                _com = _root;
+                _current = null;
+                _index = 0;
+            }
+
+            public void Dispose()
+            {
+            }
         }
 
     }

@@ -13,6 +13,7 @@ namespace FairyGUI
         public GImage()
         {
             touchable = false;
+            focusable = false;
         }
 
         override protected void CreateDisplayObject()

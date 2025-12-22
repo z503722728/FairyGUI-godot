@@ -4,16 +4,22 @@ using System;
 
 namespace FairyGUI
 {
-	public partial class NContainer3D : SubViewportContainer, IDisplayObject
-	{
-		// Called when the node enters the scene tree for the first time.
-		public GObject gOwner { get; set; }
-		public IDisplayObject parent { get { return GetParent() as IDisplayObject; } }
-		public Control node { get { return this; } }
-		public bool visible { get { return Visible; } set { Visible = value; } }
-		public float skewX { get; set; }
-		public float skewY { get; set; }
-		public float X
+    public partial class NContainer3D : SubViewportContainer, IDisplayObject
+    {
+        // Called when the node enters the scene tree for the first time.
+        public GObject gOwner { get; set; }
+        public IDisplayObject parent { get { return GetParent() as IDisplayObject; } }
+        public CanvasItem node { get { return this; } }
+        public bool visible { get { return Visible; } set { Visible = value; } }
+        public Vector2 skew { get; set; }
+        public float skewX { get; set; }
+        public float skewY { get; set; }
+        public Vector2 position
+        {
+            get { return Position; }
+            set { Position = value; }
+        }
+        public float X
         {
             get { return Position.X; }
             set { SetXY(value, Position.Y); }
@@ -30,6 +36,11 @@ namespace FairyGUI
         public void SetPosition(Vector2 pos)
         {
             Position = pos;
+        }
+        public Vector2 size
+        {
+            get { return Size; }
+            set { Size = value; }
         }
         public float width
         {
@@ -49,25 +60,32 @@ namespace FairyGUI
         }
         public void SetSize(float w, float h)
         {
-            if (!Mathf.IsEqualApprox(w, Size.X) || !Mathf.IsEqualApprox(h, Size.Y))
-                Size = new Vector2(w, h);
+            Size = new Vector2(w, h);
         }
         public void SetSize(Vector2 size)
         {
-            if (!Size.IsEqualApprox(size))
-                Size = size;
+            Size = size;
         }
-		public BlendMode blendMode { get; set; }
-		public event System.Action<double> onUpdate;
-		public NContainer3D(GObject owner)
-		{
-			gOwner = owner;
-			MouseFilter = MouseFilterEnum.Ignore;
-		}
-		public override void _Process(double delta)
-		{
-			if (onUpdate != null)
-				onUpdate(delta);
-		}		
-	}
+        public Vector2 pivot
+        {
+            get { return PivotOffset / Size; }
+            set { PivotOffset = value * Size; }
+        }
+        public Vector2 scale
+        {
+            get { return Scale; }
+            set { Scale = value; }
+        }
+        public float rotation
+        {
+            get { return Rotation; }
+            set { Rotation = value; }
+        }
+        public BlendMode blendMode { get; set; }
+        public NContainer3D(GObject owner)
+        {
+            gOwner = owner;
+            MouseFilter = MouseFilterEnum.Ignore;
+        }        
+    }
 }

@@ -15,7 +15,7 @@ namespace FairyGUI.Utils
         EventCallback0 _rolloutHandler;
         bool haveRollIn = false;
         bool checkTouchMove = false;
-        Control.CursorShape _savedCursorShape;
+        DisplayServer.CursorShape _savedCursorShape;
 
         public HtmlLink()
         {
@@ -25,8 +25,8 @@ namespace FairyGUI.Utils
             };
             _rolloverHandler = (EventContext context) =>
             {
-                _savedCursorShape = _owner.MouseDefaultCursorShape;
-                _owner.MouseDefaultCursorShape = Control.CursorShape.PointingHand;
+                _savedCursorShape = _owner.gOwner.cursor;
+                _owner.gOwner.cursor = DisplayServer.CursorShape.PointingHand;
                 if (_bgEnable)
                 {
                     _bgHightLight.color = _owner.htmlParseOptions.linkHoverBgColor;
@@ -36,7 +36,7 @@ namespace FairyGUI.Utils
             };
             _rolloutHandler = () =>
             {
-                _owner.MouseDefaultCursorShape = _savedCursorShape;
+                _owner.gOwner.cursor = _savedCursorShape;
                 if (_bgEnable)
                 {
                     _bgHightLight.color = _owner.htmlParseOptions.linkBgColor;

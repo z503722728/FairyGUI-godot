@@ -59,13 +59,19 @@ namespace FairyGUI
         /// 
         /// </summary>
         public MovieClip(GObject owner)
-            :base(owner)
+            : base(owner)
         {
             interval = 0.1f;
             _playing = true;
             timeScale = 1;
             ignoreEngineTimeScale = false;
+            Stage.inst.onUpdate += OnUpdate;
             SetPlaySettings();
+        }
+        protected override void Dispose(bool disposing)
+        {
+            base.Dispose(disposing);
+            Stage.inst.onUpdate -= OnUpdate;
         }
 
         /// <summary>
@@ -261,9 +267,8 @@ namespace FairyGUI
             _status = 0;
             this.frame = start;
         }
-        public override void _Process(double delta)
+        public void OnUpdate(double delta)
         {
-            base._Process(delta);
 
             if (!_playing || _frameCount == 0 || _status == 3)
                 return;

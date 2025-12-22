@@ -17,7 +17,7 @@ namespace FairyGUI
         GObject _tooltipWin;
         GObject _defaultTooltipWin;
 
-        EventListener _onStageResized;        
+        EventListener _onStageResized;
 
         internal static GRoot _inst;
         public static GRoot inst
@@ -47,31 +47,28 @@ namespace FairyGUI
 
         public GRoot()
         {
+            name = "GRoot";
             this.opaque = true;
-
             _popupStack = new List<GObject>();
             _justClosedPopups = new List<GObject>();
             _specialPopups = new HashSet<GObject>();
 
-            // 设置锚点铺满整个父容器
-            container.SetDeferred(Control.PropertyName.AnchorLeft, 0.0f);
-            container.SetDeferred(Control.PropertyName.AnchorTop, 0.0f);
-            container.SetDeferred(Control.PropertyName.AnchorRight, 1.0f);
-            container.SetDeferred(Control.PropertyName.AnchorBottom, 1.0f);
+            OnStageResized();
 
-            container.Resized += OnContainerSizeChanged;
-
-            OnContainerSizeChanged();
+            onStageResized.Add(OnStageResized);
 
             onTouchBegin.AddCapture(__stageTouchBegin);
             onTouchEnd.AddCapture(__stageTouchEnd);
-
         }
 
 
-        void OnContainerSizeChanged()
+        void OnStageResized()
         {
-            SetSize(container.Size.X, container.Size.Y, false, true);
+            var root = (Engine.GetMainLoop() as SceneTree)?.Root;
+            if (root != null)
+            {
+                size = root.GetVisibleRect().Size;
+            }
         }
 
         override public void Dispose()
@@ -110,6 +107,7 @@ namespace FairyGUI
         /// <param name="win"></param>
         public void ShowWindow(Window win)
         {
+            win.visible = true;
             AddChild(win);
             AdjustModalLayer();
         }
@@ -143,9 +141,17 @@ namespace FairyGUI
         public void HideWindowImmediately(Window win, bool dispose)
         {
             if (win.parent == this)
-                RemoveChild(win, dispose);
+            {
+                if (dispose)
+                    RemoveChild(win, dispose);
+                else
+                    win.visible = false;
+            }
             else if (dispose)
+            {
                 win.Dispose();
+            }
+
 
             AdjustModalLayer();
         }
@@ -705,28 +711,19 @@ namespace FairyGUI
         {
             get
             {
-                Control focused = displayObject.node.GetViewport().GuiGetFocusOwner();
-                if (focused != null && focused is IDisplayObject obj)
-                {
-                    if (obj.gOwner != null)
-                    {
-                        if (!IsAncestorOf(obj.gOwner))
-                            return obj.gOwner;
-                    }
-                }
-                return null;
+                GObject obj = Stage.inst.focus;
+                if (obj != null && !IsAncestorOf(obj))
+                    return null;
+                else
+                    return obj;
             }
 
             set
             {
                 if (value == null)
-                {
-                    Control focused = displayObject.node.GetViewport().GuiGetFocusOwner();
-                    if (focused != null)
-                        focused.ReleaseFocus();
-                }
+                    Stage.inst.focus = null;
                 else
-                    value.displayObject.node.GrabFocus();
+                    Stage.inst.focus = value;
             }
         }
 

@@ -24,7 +24,8 @@ namespace FairyGUI
         /// </summary>
         public Dictionary<uint, Emoji> emojies { get; set; }
 
-        public RichTextField()
+        public RichTextField(GObject owner)
+            : base(owner)
         {
             Name = "RichTextField";
 
@@ -104,7 +105,7 @@ namespace FairyGUI
             }
         }
 
-        
+
         public override void Dispose()
         {
             CleanupObjects();
