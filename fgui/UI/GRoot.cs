@@ -275,7 +275,20 @@ namespace FairyGUI
             _modalLayer = new GGraph();
             _modalLayer.DrawRect(this.width, this.height, 0, Colors.White, UIConfig.modalLayerColor);
             _modalLayer.AddRelation(this, RelationType.Size);
-            _modalLayer.name = _modalLayer.name = "ModalLayer";
+            _modalLayer.name = "ModalLayer";
+
+            // V4架构：注入屏幕模糊 Shader 补丁
+            var shader = GD.Load<Shader>("res://fgui/Resources/ui_blur_screen.gdshader");
+            if (shader != null)
+            {
+                var mat = new ShaderMaterial();
+                mat.Shader = shader;
+                // 必须在元元件显示对象上挂载材质
+                if (_modalLayer.displayObject != null)
+                {
+                    _modalLayer.displayObject.Material = mat;
+                }
+            }
         }
 
         /// <summary>
