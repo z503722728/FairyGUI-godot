@@ -1716,11 +1716,27 @@ namespace FairyGUI
         {
             if (displayObject != null)
             {
-                var color = displayObject.node.Modulate;
-                color.R = 0.5f;
-                color.G = 0.5f;
-                color.B = 0.5f;
-                displayObject.node.Modulate = color;
+                if (displayObject is NImage nImage)
+                {
+                    nImage.UpdateGrayed();
+                }
+                else
+                {
+                    var color = displayObject.node.Modulate;
+                    if (_grayed)
+                    {
+                        color.R = 0.5f;
+                        color.G = 0.5f;
+                        color.B = 0.5f;
+                    }
+                    else
+                    {
+                        color.R = 1.0f;
+                        color.G = 1.0f;
+                        color.B = 1.0f;
+                    }
+                    displayObject.node.Modulate = color;
+                }
             }
         }
 

@@ -80,6 +80,44 @@ namespace FairyGUI
                 }
             }
         }
+
+        private static ShaderMaterial _sharedGrayMaterial;
+        private static ShaderMaterial GetSharedGrayMaterial()
+        {
+            if (_sharedGrayMaterial == null)
+            {
+                var shader = GD.Load<Shader>("res://fgui/Resources/ui_grayscale.gdshader");
+                if (shader != null)
+                {
+                    _sharedGrayMaterial = new ShaderMaterial();
+                    _sharedGrayMaterial.Shader = shader;
+                }
+            }
+            return _sharedGrayMaterial;
+        }
+
+        public void UpdateGrayed()
+        {
+            bool isGray = gOwner != null && gOwner.grayed;
+            if (isGray)
+            {
+                var mat = GetSharedGrayMaterial();
+                if (mat != null)
+                {
+                    Material = mat;
+                    RenderingServer.CanvasItemSetInstanceShaderParameter(GetCanvasItem(), "gray_amount", 1.0f);
+                }
+            }
+            else
+            {
+                Material = _material; // 还原为基础材质（混合模式材质）
+                if (Material != null)
+                {
+                    RenderingServer.CanvasItemSetInstanceShaderParameter(GetCanvasItem(), "gray_amount", 0.0f);
+                }
+            }
+        }
+
         public Vector2 position
         {
             get { return Position; }
