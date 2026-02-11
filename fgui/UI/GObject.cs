@@ -1716,11 +1716,18 @@ namespace FairyGUI
         {
             if (displayObject != null)
             {
-                var color = displayObject.node.Modulate;
-                color.R = 0.5f;
-                color.G = 0.5f;
-                color.B = 0.5f;
-                displayObject.node.Modulate = color;
+                if (_grayed)
+                {
+                    var grayMat = GrayMaterialPool.Get();
+                    if (grayMat != null)
+                        displayObject.node.Material = grayMat;
+                }
+                else
+                {
+                    // 清除变灰材质，恢复原始显示
+                    // 如果 node 有自己的 blend mode 材质，那是设在 mesh surface 上的，不受影响
+                    displayObject.node.Material = null;
+                }
             }
         }
 
@@ -1750,7 +1757,7 @@ namespace FairyGUI
             parent.size = obj.size;
             parent.Scale = obj.scale;
             parent.Rotation = obj.rotation;
-            parent.Position = obj.position;
+            parent.SetXY(obj.X, obj.Y);
             obj.scale = Vector2.One;
             obj.rotation = 0;
             obj.SetXY(0, 0);
@@ -1765,7 +1772,7 @@ namespace FairyGUI
             parent.size = obj.size;
             parent.Scale = obj.scale;
             parent.Rotation = obj.rotation;
-            parent.Position = obj.position;
+            parent.SetXY(obj.X, obj.Y);
             obj.scale = Vector2.One;
             obj.rotation = 0;
             obj.SetXY(0, 0);

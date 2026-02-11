@@ -4,20 +4,20 @@ using System;
 
 namespace FairyGUI
 {
-	public partial class NContainer : Node2D, IDisplayObject
-	{
-		// Called when the node enters the scene tree for the first time.
-		protected Vector2 _position = Vector2.Zero;
+    public partial class NContainer : Node2D, IDisplayObject
+    {
+        // Called when the node enters the scene tree for the first time.
+        protected Vector2 _position = Vector2.Zero;
         protected Vector2 _size = Vector2.Zero;
         protected Vector2 _pivot = Vector2.Zero;
         protected Vector2 _scale = Vector2.One;
         protected float _rotation = 0;
         protected Vector2 _skew = Vector2.Zero;
-		public GObject gOwner { get; set; }
-		public IDisplayObject parent { get { return GetParent() as IDisplayObject; } }
-		public CanvasItem node { get { return this; } }
-		public bool visible { get { return Visible; } set { Visible = value; } }
-		public Vector2 skew
+        public GObject gOwner { get; set; }
+        public IDisplayObject parent { get { return GetParent() as IDisplayObject; } }
+        public CanvasItem node { get { return this; } }
+        public bool visible { get { return Visible; } set { Visible = value; } }
+        public Vector2 skew
         {
             get { return _skew; }
             set
@@ -56,7 +56,7 @@ namespace FairyGUI
         public Vector2 position
         {
             get { return Position; }
-            set { SetPosition(position); }
+            set { SetPosition(value); }
         }
         public float X
         {
@@ -202,11 +202,11 @@ namespace FairyGUI
                 transform.Origin = _position;
             Transform = transform;
         }
-		public BlendMode blendMode { get; set; }
-		
-		public NContainer(GObject owner)
+        public BlendMode blendMode { get; set; }
+
+        public NContainer(GObject owner)
         {
             gOwner = owner;
-		}	
-	}
+        }
+    }
 }
