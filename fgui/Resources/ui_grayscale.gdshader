@@ -10,6 +10,6 @@ void fragment() {
     vec3 gray_color = vec3(gray);
     // 在彩色和灰色之间插值
     vec3 final_rgb = mix(tex_color.rgb, gray_color, gray_amount);
-    // Godot 4.x: COLOR 在 fragment 入口已携带 modulate 信息
+    // COLOR 承载 CanvasItem.modulate 调色
     COLOR = vec4(final_rgb, tex_color.a) * COLOR;
 }

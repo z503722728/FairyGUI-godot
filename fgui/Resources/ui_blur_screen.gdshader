@@ -12,7 +12,7 @@ void fragment() {
     // 对当前屏幕下方已渲染的 Viewport 进行采样
     vec4 screen_color = textureLod(screen_texture, SCREEN_UV, blur_amount);
     
-    // Godot 4.x: COLOR 在 fragment 入口已携带 modulate（遮罩色）
+    // COLOR 承载 FGUI 设置的遮罩色 (通过 CanvasItem.modulate)
     vec3 final_color = mix(screen_color.rgb, COLOR.rgb, COLOR.a * color_mix);
     
     COLOR = vec4(final_color, 1.0);

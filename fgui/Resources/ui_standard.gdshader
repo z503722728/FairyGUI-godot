@@ -56,22 +56,22 @@ void fragment() {
         color += shine_color.rgb * shine_mask * shine_color.a;
     }
 
-    // Godot 4.x: COLOR 在 fragment 入口已携带 modulate 信息
+    // COLOR 在 canvas_item shader 中承载 CanvasItem.modulate 调色信息
     vec4 final_output = vec4(color, tex_color.a) * COLOR;
 
     // 4. 高级混合模式 (Screen / Overlay 对背景)
     if (blend_mode > 0) {
         vec3 base = texture(screen_texture, SCREEN_UV).rgb;
-        vec3 blend = final_output.rgb;
+        vec3 blend_color = final_output.rgb;
         vec3 result;
 
         if (blend_mode == 1) { // Screen
-            result = 1.0 - (1.0 - base) * (1.0 - blend);
+            result = 1.0 - (1.0 - base) * (1.0 - blend_color);
         } 
         else if (blend_mode == 2) { // Overlay
             result = mix(
-                2.0 * base * blend,
-                1.0 - 2.0 * (1.0 - base) * (1.0 - blend),
+                2.0 * base * blend_color,
+                1.0 - 2.0 * (1.0 - base) * (1.0 - blend_color),
                 step(0.5, dot(base, vec3(0.299, 0.587, 0.114)))
             );
         }

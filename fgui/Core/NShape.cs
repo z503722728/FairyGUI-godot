@@ -30,7 +30,7 @@ namespace FairyGUI
         protected Vector2 _scale = Vector2.One;
         protected float _rotation = 0;
         protected Vector2 _skew = Vector2.Zero;
-        protected Material _material;
+        protected CanvasItemMaterial _material;
         protected ArrayMesh _mesh;
         protected SurfaceTool _surfaceTool;
         protected Color _lineColor = Colors.Black;
@@ -254,9 +254,9 @@ namespace FairyGUI
         {
             get
             {
-                if (_material is CanvasItemMaterial cim)
+                if (_material != null)
                 {
-                    switch (cim.BlendMode)
+                    switch (_material.BlendMode)
                     {
                         case CanvasItemMaterial.BlendModeEnum.Mix:
                             return BlendMode.Normal;
@@ -293,13 +293,7 @@ namespace FairyGUI
                         blendMode = CanvasItemMaterial.BlendModeEnum.PremultAlpha;
                         break;
                 }
-                bool needUpdate = _material == null;
-                if (!needUpdate && _material is CanvasItemMaterial cim)
-                    needUpdate = cim.BlendMode != blendMode;
-                else
-                    needUpdate = true;
-
-                if (needUpdate)
+                if (_material == null || _material.BlendMode != blendMode)
                 {
                     _material = MaterialManager.inst.GetStandardMaterial(blendMode);
                     if (_material != null)

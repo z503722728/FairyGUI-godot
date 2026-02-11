@@ -17,7 +17,7 @@ public class CooldownDemo : FairyGUI.Window
     }
     GProgressBar _btn0;
     GButton _btn1;
-    new GImage _mask;
+    GImage _mask;
     float _time;
     public CooldownDemo()
     {
