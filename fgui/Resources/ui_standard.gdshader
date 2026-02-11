@@ -13,6 +13,9 @@ instance uniform float hue_shift : hint_range(-1.0, 1.0) = 0.0;
 // 0: Normal, 1: Screen, 2: Overlay
 instance uniform int blend_mode = 0;
 
+// Godot 4.x: screen_texture 必须声明为 uniform sampler2D
+uniform sampler2D screen_texture : hint_screen_texture, repeat_disable, filter_linear;
+
 // 辅助函数
 vec3 rgb2hsv(vec3 c) {
     vec4 K = vec4(0.0, -1.0 / 3.0, 2.0 / 3.0, -1.0);
@@ -53,12 +56,11 @@ void fragment() {
         color += shine_color.rgb * shine_mask * shine_color.a;
     }
 
-    // 最终准备输出的颜色 (叠加 FGUI 的颜色调节)
-    vec4 final_output = vec4(color, tex_color.a) * MODULATE;
+    // Godot 4.x: COLOR 在 fragment 入口已携带 modulate 信息
+    vec4 final_output = vec4(color, tex_color.a) * COLOR;
 
     // 4. 高级混合模式 (Screen / Overlay 对背景)
     if (blend_mode > 0) {
-        // 采样当前屏幕背景
         vec3 base = texture(screen_texture, SCREEN_UV).rgb;
         vec3 blend = final_output.rgb;
         vec3 result;
@@ -70,7 +72,7 @@ void fragment() {
             result = mix(
                 2.0 * base * blend,
                 1.0 - 2.0 * (1.0 - base) * (1.0 - blend),
-                step(0.5, dot(base, vec3(0.299, 0.587, 0.114))) // 使用亮度判断
+                step(0.5, dot(base, vec3(0.299, 0.587, 0.114)))
             );
         }
         

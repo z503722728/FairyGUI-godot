@@ -258,7 +258,7 @@ namespace FairyGUI
                 if (_material != null && _material is ShaderMaterial shaderMat)
                 {
                     // V3中我们目前统一使用 ShaderMaterial
-                    return BlendMode.Normal; 
+                    return BlendMode.Normal;
                 }
                 return BlendMode.Normal;
             }
@@ -281,7 +281,7 @@ namespace FairyGUI
                         blendMode = CanvasItemMaterial.BlendModeEnum.PremultAlpha;
                         break;
                 }
-                
+
                 // 获取全局统一的、支持合批变灰的材质
                 var newMat = MaterialManager.inst.GetStandardMaterial(blendMode);
                 if (_material != newMat)
@@ -378,7 +378,7 @@ namespace FairyGUI
             Position = _position;
         }
 
-        public void QueueRedraw()
+        public new void QueueRedraw()
         {
             UpdateMesh();
         }
@@ -815,7 +815,7 @@ namespace FairyGUI
             {
                 maskOwner.node.QueueRedraw();
                 return;
-            }            
+            }
             DrawMesh(_mesh, _texture?.nativeTexture);
         }
 
@@ -832,6 +832,54 @@ namespace FairyGUI
         };
 
         static readonly int[] gridTileIndice = new int[] { -1, 0, -1, 1, 4, 2, -1, 3, -1 };
+
+        public FlipType flip
+        {
+            get => _flip;
+            set { if (_flip != value) { _flip = value; QueueRedraw(); } }
+        }
+
+        public FillMethod fillMethod
+        {
+            get => _fillMethod;
+            set { if (_fillMethod != value) { _fillMethod = value; QueueRedraw(); } }
+        }
+
+        public int fillOrigin
+        {
+            get => _fillOrigin;
+            set { if (_fillOrigin != value) { _fillOrigin = value; QueueRedraw(); } }
+        }
+
+        public float fillAmount
+        {
+            get => _fillAmount;
+            set { if (!Mathf.IsEqualApprox(_fillAmount, value)) { _fillAmount = value; QueueRedraw(); } }
+        }
+
+        public bool fillClockwise
+        {
+            get => _fillClockwise;
+            set { if (_fillClockwise != value) { _fillClockwise = value; QueueRedraw(); } }
+        }
+
+        public Rect? scale9Grid
+        {
+            get => _scale9Grid;
+            set { _scale9Grid = value; QueueRedraw(); }
+        }
+
+        public bool scaleByTile
+        {
+            get => _scaleByTile;
+            set { if (_scaleByTile != value) { _scaleByTile = value; QueueRedraw(); } }
+        }
+
+        public int tileGridIndice
+        {
+            get => _tileGridIndice;
+            set { _tileGridIndice = value; QueueRedraw(); }
+        }
 
         public void SetFlip(FlipType value)
         {

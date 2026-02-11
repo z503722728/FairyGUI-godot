@@ -286,7 +286,7 @@ namespace FairyGUI
                 // 必须在元元件显示对象上挂载材质
                 if (_modalLayer.displayObject != null)
                 {
-                    _modalLayer.displayObject.Material = mat;
+                    _modalLayer.displayObject.node.Material = mat;
                 }
             }
         }

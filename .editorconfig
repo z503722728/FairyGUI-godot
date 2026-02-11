@@ -2,3 +2,66 @@ root = true
 
 [*]
 charset = utf-8
+
+[*.cs]
+# 关闭命名规则提示 (IDE1006: "这些字必须以大写字符开头")
+dotnet_diagnostic.IDE1006.severity = none
+
+# 关闭 "可简化 new 表达式" (IDE0090)
+dotnet_diagnostic.IDE0090.severity = none
+
+# 关闭 "可以简化集合初始化" (IDE0028/IDE0300~IDE0305)
+dotnet_diagnostic.IDE0028.severity = none
+dotnet_diagnostic.IDE0300.severity = none
+dotnet_diagnostic.IDE0301.severity = none
+dotnet_diagnostic.IDE0302.severity = none
+dotnet_diagnostic.IDE0303.severity = none
+dotnet_diagnostic.IDE0304.severity = none
+dotnet_diagnostic.IDE0305.severity = none
+
+# 关闭 "使用复合分配" (IDE0054)
+dotnet_diagnostic.IDE0054.severity = none
+
+# 关闭 "不需要赋值" (IDE0059)
+dotnet_diagnostic.IDE0059.severity = none
+
+# 关闭 "未使用参数" (IDE0060)
+dotnet_diagnostic.IDE0060.severity = none
+
+# 关闭 "使用 switch 表达式" (IDE0066)
+dotnet_diagnostic.IDE0066.severity = none
+
+# 关闭 "使用模式匹配" (IDE0019/IDE0020)
+dotnet_diagnostic.IDE0019.severity = none
+dotnet_diagnostic.IDE0020.severity = none
+
+# 关闭 "使用元组交换" (IDE0180)
+dotnet_diagnostic.IDE0180.severity = none
+
+# 关闭 "将字段设为只读" (IDE0044)
+dotnet_diagnostic.IDE0044.severity = none
+
+# 关闭 "可标记为 static" (CA1822)
+dotnet_diagnostic.CA1822.severity = none
+
+# 关闭 "可以简化 Null 检查" (IDE0031)
+dotnet_diagnostic.IDE0031.severity = none
+
+# 关闭 "可以简化对象初始化" (IDE0017)
+dotnet_diagnostic.IDE0017.severity = none
+
+# 关闭 "可以内联变量声明" (IDE0018)
+dotnet_diagnostic.IDE0018.severity = none
+
+# 关闭 "索引可以简化" (IDE0056/IDE0057)
+dotnet_diagnostic.IDE0056.severity = none
+dotnet_diagnostic.IDE0057.severity = none
+
+# 关闭 "命名空间与文件夹不匹配" (IDE0130)
+dotnet_diagnostic.IDE0130.severity = none
+
+# 关闭 "在命名空间中声明类型" (IDE0161)
+dotnet_diagnostic.IDE0161.severity = none
+
+# 关闭 "为 ObsoleteAttribute 提供消息" (CA1041)
+dotnet_diagnostic.CA1041.severity = none
