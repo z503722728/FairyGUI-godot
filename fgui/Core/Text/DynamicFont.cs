@@ -348,6 +348,22 @@ namespace FairyGUI
 
         override public bool GetGlyph(char ch, out float width, out float height, out float baseline)
         {
+            if (ch == ' ')
+            {
+                if (_font != null && _fontRid.IsValid)
+                {
+                    long glyphIndex = _textSrv.FontGetGlyphIndex(_fontRid, _normalizedFontSize, ch, 0);
+                    var advance = _textSrv.FontGetGlyphAdvance(_fontRid, _normalizedFontSize, glyphIndex);
+                    width = advance.X * _fontSize / _normalizedFontSize;
+                    height = Mathf.RoundToInt(_fontSize * LINE_HEIGHT_FACTOR);
+                    baseline = _fontSize;
+                    _glyphInfo = null;
+                    return true;
+                }
+                width = height = baseline = 0;
+                return false;
+            }
+
             _glyphInfo = GetGlyphInfo(ch, 0);
             if (_glyphInfo == null)
             {
