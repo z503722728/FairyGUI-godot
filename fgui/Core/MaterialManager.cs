@@ -1,10 +1,4 @@
 using Godot;
-using System.Collections.Generic;
-
-public enum MaterialType
-{
-    StandardMaterial,
-}
 
 public class MaterialManager
 {
@@ -20,20 +14,44 @@ public class MaterialManager
         }
     }
 
-    Dictionary<string, Material> _matDic = new Dictionary<string, Material>();
+    ShaderMaterial _uberDefault;
+    CanvasItemMaterial _addMaterial;
 
-    public CanvasItemMaterial GetStandardMaterial(CanvasItemMaterial.BlendModeEnum blendMode)
+    /// <summary>
+    /// 默认的 uber ShaderMaterial (ui_standard.gdshader)。
+    /// 所有参数为默认值 (gray=0, blend=Normal)。
+    /// 不需要特效的元素共享此实例以实现合批。
+    /// </summary>
+    public ShaderMaterial GetUberMaterial()
     {
-        string key = $"{blendMode}";
-        Material mat;
-        if (_matDic.TryGetValue(key, out mat))
+        if (_uberDefault == null)
         {
-            return mat as CanvasItemMaterial;
+            var shader = ResourceLoader.Load<Shader>("res://fgui/Resources/ui_standard.gdshader");
+            _uberDefault = new ShaderMaterial();
+            _uberDefault.Shader = shader;
         }
-        CanvasItemMaterial newMat = new CanvasItemMaterial();
-        newMat.BlendMode = blendMode;
-        _matDic.Add(key, newMat);
-        return newMat;
+        return _uberDefault;
     }
 
+    /// <summary>
+    /// 克隆一个独立的 uber ShaderMaterial。
+    /// 用于需要自定义参数（灰度、特殊混合模式等）的元素。
+    /// </summary>
+    public ShaderMaterial CloneUberMaterial()
+    {
+        return (ShaderMaterial)GetUberMaterial().Duplicate();
+    }
+
+    /// <summary>
+    /// Add 混合模式使用 CanvasItemMaterial 的固定管线。
+    /// </summary>
+    public CanvasItemMaterial GetAddMaterial()
+    {
+        if (_addMaterial == null)
+        {
+            _addMaterial = new CanvasItemMaterial();
+            _addMaterial.BlendMode = CanvasItemMaterial.BlendModeEnum.Add;
+        }
+        return _addMaterial;
+    }
 }

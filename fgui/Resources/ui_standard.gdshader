@@ -1,20 +1,22 @@
 shader_type canvas_item;
 
-// --- 基础实例参数 ---
-instance uniform float gray_amount : hint_range(0.0, 1.0) = 0.0;
+// --- 基础参数 ---
+uniform float gray_amount : hint_range(0.0, 1.0) = 0.0;
 
 // --- 特效参数 ---
-instance uniform float shine_speed : hint_range(0.0, 10.0) = 0.0;
-instance uniform float shine_width : hint_range(0.0, 1.0) = 0.2;
-instance uniform vec4 shine_color : source_color = vec4(1.0, 1.0, 1.0, 0.5);
-instance uniform float hue_shift : hint_range(-1.0, 1.0) = 0.0;
+uniform float shine_speed : hint_range(0.0, 10.0) = 0.0;
+uniform float shine_width : hint_range(0.0, 1.0) = 0.2;
+uniform vec4 shine_color : source_color = vec4(1.0, 1.0, 1.0, 0.5);
+uniform float hue_shift : hint_range(-1.0, 1.0) = 0.0;
 
 // --- 混合模式参数 ---
-// 0: Normal, 1: Screen, 2: Overlay
-instance uniform int blend_mode = 0;
+// 0: Normal(Mix), 1: Screen, 2: Overlay, 3: Multiply
+uniform float blend_mode = 0.0;
 
-// Godot 4.x: screen_texture 必须声明为 uniform sampler2D
 uniform sampler2D screen_texture : hint_screen_texture, repeat_disable, filter_linear;
+
+// 传递原始顶点色（不含 TEXTURE），避免 fragment 中 COLOR 已乘过 TEXTURE 导致双重乘法
+varying vec4 vertex_modulate;
 
 // 辅助函数
 vec3 rgb2hsv(vec3 c) {
@@ -32,7 +34,13 @@ vec3 hsv2rgb(vec3 c) {
     return c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y);
 }
 
+void vertex() {
+    // COLOR 此时 = 顶点色 × modulate × self_modulate（尚未乘 TEXTURE）
+    vertex_modulate = COLOR;
+}
+
 void fragment() {
+    // 手动采样纹理，不依赖 COLOR（因为 fragment 的 COLOR 已被 Godot 乘过 TEXTURE）
     vec4 tex_color = texture(TEXTURE, UV);
     vec3 color = tex_color.rgb;
 
@@ -43,40 +51,51 @@ void fragment() {
         color = hsv2rgb(hsv);
     }
 
-    // 2. 变灰
-    float gray = dot(color, vec3(0.299, 0.587, 0.114));
-    color = mix(color, vec3(gray), gray_amount);
-
-    // 3. 流光
+    // 2. 流光
     if (shine_speed > 0.0) {
         float shine_pos = fract(TIME * shine_speed);
         float edge0 = shine_pos - shine_width;
-        float edge1 = shine_pos;
-        float shine_mask = smoothstep(edge0, shine_pos, UV.x + UV.y) * smoothstep(shine_pos + shine_width, shine_pos, UV.x + UV.y);
+        float shine_mask = smoothstep(edge0, shine_pos, UV.x + UV.y)
+                         * smoothstep(shine_pos + shine_width, shine_pos, UV.x + UV.y);
         color += shine_color.rgb * shine_mask * shine_color.a;
     }
 
-    // COLOR 在 canvas_item shader 中承载 CanvasItem.modulate 调色信息
-    vec4 final_output = vec4(color, tex_color.a) * COLOR;
+    // 用 vertex_modulate（不含 TEXTURE）乘以手动采样的纹理 —— 与默认管线一致
+    vec4 final_output = vec4(color, tex_color.a) * vertex_modulate;
 
-    // 4. 高级混合模式 (Screen / Overlay 对背景)
-    if (blend_mode > 0) {
-        vec3 base = texture(screen_texture, SCREEN_UV).rgb;
-        vec3 blend_color = final_output.rgb;
+    // 3. 变灰（必须在乘以 modulate 之后，否则 modulate 颜色会重新染色）
+    // FairyGUI 编辑器在 sRGB 空间直接算灰度，不做 gamma 往返
+    if (gray_amount > 0.001) {
+        float gray = dot(final_output.rgb, vec3(0.299, 0.587, 0.114));
+        final_output.rgb = mix(final_output.rgb, vec3(gray), gray_amount);
+    }
+
+    // 4. 混合模式（Overlay / Multiply 需要读背景）
+    // 注意: Screen 模式不支持（Godot 无法模拟 Unity 的 Blend One OneMinusSrcColor）
+    if (blend_mode > 1.5) {
+        if (final_output.a < 0.001) {
+            discard;
+        }
+
+        vec3 base = textureLod(screen_texture, SCREEN_UV, 0.0).rgb;
         vec3 result;
 
-        if (blend_mode == 1) { // Screen
-            result = 1.0 - (1.0 - base) * (1.0 - blend_color);
-        } 
-        else if (blend_mode == 2) { // Overlay
+        if (blend_mode < 2.5) {
+            // Overlay
             result = mix(
-                2.0 * base * blend_color,
-                1.0 - 2.0 * (1.0 - base) * (1.0 - blend_color),
+                2.0 * base * final_output.rgb,
+                1.0 - 2.0 * (1.0 - base) * (1.0 - final_output.rgb),
                 step(0.5, dot(base, vec3(0.299, 0.587, 0.114)))
             );
+            final_output.rgb = mix(base, result, final_output.a);
         }
-        
-        final_output.rgb = mix(final_output.rgb, result, final_output.a);
+        else {
+            // Multiply
+            result = pow(base * final_output.rgb, vec3(0.8));
+            final_output.rgb = mix(base, result, final_output.a);
+        }
+
+        final_output.a = 1.0;
     }
 
     COLOR = final_output;

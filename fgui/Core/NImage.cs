@@ -31,7 +31,7 @@ namespace FairyGUI
         protected bool _fillClockwise = true;
         protected NTexture _texture;
         protected Texture2D _reverseTexture;
-        protected CanvasItemMaterial _material;
+        protected BlendMode _blendMode = BlendMode.Normal;
         protected ArrayMesh _mesh;
         protected ArrayMesh _outBoundMesh;
         protected SurfaceTool _surfaceTool;
@@ -236,55 +236,50 @@ namespace FairyGUI
         }
         public BlendMode blendMode
         {
-            get
-            {
-                if (_material != null)
-                {
-                    switch (_material.BlendMode)
-                    {
-                        case CanvasItemMaterial.BlendModeEnum.Mix:
-                            return BlendMode.Normal;
-                        case CanvasItemMaterial.BlendModeEnum.Add:
-                            return BlendMode.Add;
-                        case CanvasItemMaterial.BlendModeEnum.Mul:
-                            return BlendMode.Multiply;
-                        case CanvasItemMaterial.BlendModeEnum.PremultAlpha:
-                            return BlendMode.Off;
-                        default:
-                            return BlendMode.None;
-                    }
-                }
-                else
-                {
-                    return BlendMode.Normal;
-                }
-            }
+            get { return _blendMode; }
             set
             {
-                CanvasItemMaterial.BlendModeEnum blendMode = CanvasItemMaterial.BlendModeEnum.PremultAlpha;
-                switch (value)
-                {
-                    case BlendMode.Normal:
-                        blendMode = CanvasItemMaterial.BlendModeEnum.Mix;
-                        break;
-                    case BlendMode.Add:
-                        blendMode = CanvasItemMaterial.BlendModeEnum.Add;
-                        break;
-                    case BlendMode.Multiply:
-                        blendMode = CanvasItemMaterial.BlendModeEnum.Mul;
-                        break;
-                    default:
-                        blendMode = CanvasItemMaterial.BlendModeEnum.PremultAlpha;
-                        break;
-                }
-                if (_material == null || _material.BlendMode != blendMode)
-                {
-                    _material = MaterialManager.inst.GetStandardMaterial(blendMode);
-                    if (_material != null)
-                    {
-                        Material = _material;
-                    }
-                }
+                if (_blendMode == value)
+                    return;
+                _blendMode = value;
+                ApplyMaterial();
+            }
+        }
+
+        ShaderMaterial _ownMaterial; // 非默认参数时使用的独立材质克隆
+
+        /// <summary>
+        /// 根据 blendMode 和 grayed 状态，决定使用共享默认材质还是独立克隆材质。
+        /// 使用 SetShaderParameter 设参数（不依赖场景树状态）。
+        /// </summary>
+        internal void ApplyMaterial()
+        {
+            if (_blendMode == BlendMode.Add)
+            {
+                Material = MaterialManager.inst.GetAddMaterial();
+                _ownMaterial = null;
+                return;
+            }
+
+            float grayVal = (gOwner != null && gOwner.grayed) ? 1.0f : 0.0f;
+            float blendVal = 0.0f;
+            // Screen 不支持（Godot 无法模拟 Unity 硬件混合），回退为 Normal
+            if (_blendMode == BlendMode.Multiply) blendVal = 3.0f;
+
+            bool needsCustom = (blendVal != 0.0f || grayVal != 0.0f);
+
+            if (needsCustom)
+            {
+                if (_ownMaterial == null)
+                    _ownMaterial = MaterialManager.inst.CloneUberMaterial();
+                _ownMaterial.SetShaderParameter("blend_mode", blendVal);
+                _ownMaterial.SetShaderParameter("gray_amount", grayVal);
+                Material = _ownMaterial;
+            }
+            else
+            {
+                _ownMaterial = null;
+                Material = MaterialManager.inst.GetUberMaterial();
             }
         }
         public NImage(GObject owner)
@@ -305,6 +300,7 @@ namespace FairyGUI
             Name = "Image";
             _mesh = new ArrayMesh();
             _surfaceTool = new SurfaceTool();
+            Material = MaterialManager.inst.GetUberMaterial();
         }
         public NTexture texture
         {
@@ -573,8 +569,8 @@ namespace FairyGUI
             }
 
             // _surfaceTool.GenerateNormals();
-            if (_material != null)
-                _surfaceTool.SetMaterial(_material);
+            // 材质通过 node.Material 设置（uber shader 或 CanvasItemMaterial），
+            // 不再在 mesh surface 上设 material
             _surfaceTool.Commit(_mesh);
 
             if (reserveDraw)
@@ -1345,7 +1341,7 @@ namespace FairyGUI
             {
                 maskOwner.node.QueueRedraw();
                 return;
-            }            
+            }
             DrawMesh(_mesh, _texture?.nativeTexture);
         }
     }

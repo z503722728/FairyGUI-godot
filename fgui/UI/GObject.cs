@@ -1716,18 +1716,12 @@ namespace FairyGUI
         {
             if (displayObject != null)
             {
-                if (_grayed)
-                {
-                    var grayMat = GrayMaterialPool.Get();
-                    if (grayMat != null)
-                        displayObject.node.Material = grayMat;
-                }
-                else
-                {
-                    // 清除变灰材质，恢复原始显示
-                    // 如果 node 有自己的 blend mode 材质，那是设在 mesh surface 上的，不受影响
-                    displayObject.node.Material = null;
-                }
+                // 通过 ApplyMaterial 重新计算材质
+                // gray_amount 会在 ApplyMaterial 中从 gOwner.grayed 读取
+                if (displayObject is NImage nimg)
+                    nimg.ApplyMaterial();
+                else if (displayObject is NShape nshp)
+                    nshp.ApplyMaterial();
             }
         }
 
