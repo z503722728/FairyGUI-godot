@@ -79,7 +79,7 @@ namespace FairyGUI
             if (_disposed)
                 return;
             Stage.inst.onUpdate -= OnUpdate;
-            
+
             int cnt = _transitions.Count;
             for (int i = 0; i < cnt; ++i)
             {
@@ -118,7 +118,7 @@ namespace FairyGUI
             container = null;
             if (_clipContainer != null)
                 _clipContainer.QueueFree();
-            _clipContainer = null;     
+            _clipContainer = null;
             base.Dispose(); //Dispose native tree first, avoid DisplayObject.RemoveFromParent call
         }
 
@@ -241,7 +241,7 @@ namespace FairyGUI
             get { return !_buildingDisplayList; }
             set
             {
-                if(_buildingDisplayList!=(!value))
+                if (_buildingDisplayList != (!value))
                 {
                     _buildingDisplayList = !value;
                     if (!_buildingDisplayList)
@@ -1208,7 +1208,7 @@ namespace FairyGUI
             {
                 float w = this.width - (_margin.left + _margin.right);
                 float h = this.height - (_margin.top + _margin.bottom);
-                container.SetXY(_margin.left, _margin.top);
+                container.SetXY(_margin.left + _alignOffset.X, _margin.top + _alignOffset.Y);
                 container.size = new Vector2(w, h);
             }
         }

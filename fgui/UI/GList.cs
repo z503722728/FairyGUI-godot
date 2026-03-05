@@ -102,7 +102,7 @@ namespace FairyGUI
             _itemClickDelegate = __clickItem;
         }
 
-       
+
 
         public override void Dispose()
         {
@@ -2549,7 +2549,7 @@ namespace FairyGUI
                 _alignOffset = newOffset;
                 if (scrollPane != null)
                     scrollPane.AdjustMaskContainer();
-                else
+                else if (container != displayObject)
                     container.SetXY(_margin.left + _alignOffset.X, _margin.top + _alignOffset.Y);
             }
         }
@@ -2946,6 +2946,11 @@ namespace FairyGUI
             }
             else
                 SetupOverflow(overflow);
+
+            // Godot特殊处理：当GList有对齐设置时，必须确保container != displayObject
+            // 否则HandleAlign中的container.SetXY会覆盖GObject自身的位置
+            if (container == displayObject && (_align != AlignType.Left || _verticalAlign != VertAlignType.Top))
+                displayObject = AddParentContainer(container);
 
             if (buffer.ReadBool())
             {
